@@ -35,7 +35,7 @@ var userData = {
 };
 
 doTest(userData, schema);
-
+// testPerformance(userData, schema, 10000);
 
 
 function doTest(data, schema, schemaPool) {
@@ -59,8 +59,42 @@ function doTest(data, schema, schemaPool) {
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
     console.log("compress rate: ", compressRate);
-};
+}
 
 function stringify(object) {
     return JSON.stringify(object, null, 2);
+}
+
+
+function testPerformance(data, schema, testCount) {
+    console.log("\n======= performance test =======");
+
+    testCount = testCount || 100;
+    var struct = OneBuf.loadSchema(schema);
+
+    console.time("encodeJSON");
+    var jsonStr;
+    for (var i = 0; i < testCount; i++) {
+        jsonStr = JSON.stringify(data);
+    }
+    console.timeEnd("encodeJSON");
+
+    console.time("encodeBin");
+    var bin;
+    for (var i = 0; i < testCount; i++) {
+        bin = struct.jsonToBinary(data);
+    }
+    console.timeEnd("encodeBin");
+
+    console.time("decodeJSON");
+    for (var i = 0; i < testCount; i++) {
+        JSON.parse(jsonStr);
+    }
+    console.timeEnd("decodeJSON");
+
+    console.time("decodeBin");
+    for (var i = 0; i < testCount; i++) {
+        struct.binaryToJSON(bin);
+    }
+    console.timeEnd("decodeBin");
 }
