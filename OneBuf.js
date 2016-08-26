@@ -86,7 +86,7 @@ var OneBuf = OneBuf || {};
 
         bufferLength += this.calculateLength(this.schema, data, true);
 
-        console.log("length: ", bufferLength);
+        // console.log("length: ", bufferLength);
         var buffer = new ArrayBuffer(bufferLength);
         var dataView = new DataView(buffer);
         var dataViewIndex = 0;
@@ -98,8 +98,8 @@ var OneBuf = OneBuf || {};
             dataViewIndex: dataViewIndex
         };
         this.writeToBuffer(this.schema, data, dataViewGroup, true);
-        console.log("dataViewIndex: ", dataViewGroup.dataViewIndex);
-        console.log("dataView: ", dataViewGroup.dataView.byteLength);
+        // console.log("dataViewIndex: ", dataViewGroup.dataViewIndex);
+        // console.log("dataView: ", dataViewGroup.dataView.byteLength);
 
         return dataView;
     };

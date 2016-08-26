@@ -2,17 +2,41 @@
 
 var OneBuf = require("../OneBuf.js");
 
-var testDir = "./";
-var test1 = require(testDir + "test1.js");
-var test2 = require(testDir + "test2.js");
-var test3 = require(testDir + "test3.js");
-var test4 = require(testDir + "test4.js");
-var test5 = require(testDir + "test5.js");
-var test6 = require(testDir + "test6.js");
-var test7 = require(testDir + "test7.js");
-var test8 = require(testDir + "test8.js");
+var schema = {
+    id: "user",
+    fields: [{
+        name: "sn",
+        type: "uint16",
+    }, {
+        name: "name",
+        type: "string",
+    }, {
+        name: "gender",
+        type: "uint8",
+    }, {
+        name: "age",
+        type: "uint8",
+    }, {
+        name: "height",
+        type: "float32",
+    }, {
+        name: "weight",
+        type: "float32",
+    }]
+};
 
-var unitTests = [test1, test2, test3, test4, test5, test6, test7, test8];
+var userData = {
+    sn: 1234,
+    name: "Tom",
+    gender: 1,
+    age: 32,
+    height: 177.40,
+    weight: 87.50,
+};
+
+doTest(userData, schema);
+
+
 
 function doTest(data, schema, schemaPool) {
     if (schemaPool) {
@@ -40,58 +64,3 @@ function doTest(data, schema, schemaPool) {
 function stringify(object) {
     return JSON.stringify(object, null, 2);
 }
-
-var unitTest;
-for (var i = 0; i < unitTests.length; i++) {
-    unitTest = unitTests[i];
-    console.log("unitTest: ", i);
-    doTest(unitTest.data, unitTest.schema, unitTest.schemaPool);
-    console.log("-------------- unit test end -------------");
-    console.log("                                          ");
-    console.log("                                          ");
-    console.log("                                          ");
-    console.log("                                          ");
-    console.log("                                          ");
-    console.log("                                          ");
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
