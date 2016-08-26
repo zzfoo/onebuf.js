@@ -7,3 +7,7 @@ onebuf.js is a JavaScript library for serializing structred data, just like [pro
 ## Usage
 
 // hold on for a sec...
+
+## TODO
+
+To have better performance , add the Fast-Struct for static schema ( the length of data is immutable ).
