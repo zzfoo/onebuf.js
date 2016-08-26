@@ -10,6 +10,7 @@ var schema = {
     }, {
         name: "name",
         type: "string",
+        optional: true,
     }, {
         name: "gender",
         type: "uint8",
@@ -30,12 +31,12 @@ var userData = {
     name: "Tom",
     gender: 1,
     age: 32,
-    height: 177.40,
+    height: 177.50,
     weight: 87.50,
 };
 
 doTest(userData, schema);
-// testPerformance(userData, schema, 10000);
+testPerformance(userData, schema, 10000);
 
 
 function doTest(data, schema, schemaPool) {
@@ -54,11 +55,12 @@ function doTest(data, schema, schemaPool) {
 
     var stringfiedDataSize = OneBuf.sizeOfUTF8String(JSON.stringify(data));
     var binaryDataSize = encodedData.byteLength;
-    var compressRate = (((binaryDataSize / stringfiedDataSize) * 100) >> 0) / 100;
+    var compressRate = (binaryDataSize / stringfiedDataSize).toFixed(2);
     console.log("======= data size =======");
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
     console.log("compress rate: ", compressRate);
+    console.log("\n");
 }
 
 function stringify(object) {
@@ -67,7 +69,7 @@ function stringify(object) {
 
 
 function testPerformance(data, schema, testCount) {
-    console.log("\n======= performance test =======");
+    console.log("======= performance test =======");
 
     testCount = testCount || 100;
     var struct = OneBuf.loadSchema(schema);
@@ -97,4 +99,5 @@ function testPerformance(data, schema, testCount) {
         struct.binaryToJSON(bin);
     }
     console.timeEnd("decodeBin");
+    console.log("\n");
 }

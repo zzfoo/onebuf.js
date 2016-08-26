@@ -30,12 +30,13 @@ function doTest(data, schema, schemaPool) {
 
     var stringfiedDataSize = OneBuf.sizeOfUTF8String(JSON.stringify(data));
     var binaryDataSize = encodedData.byteLength;
-    var compressRate = (((binaryDataSize / stringfiedDataSize) * 100) >> 0) / 100;
+    var compressRate = (binaryDataSize / stringfiedDataSize).toFixed(2);
     console.log("======= data size =======");
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
     console.log("compress rate: ", compressRate);
-};
+    console.log("\n");
+}
 
 function stringify(object) {
     return JSON.stringify(object, null, 2);
