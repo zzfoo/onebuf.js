@@ -105,12 +105,12 @@ var OneBuf = OneBuf || {};
     };
 
     Struct.prototype.calculateLength = function(schema, data, top) {
-        var dynamic = schema.dynamic;
+        var optional = schema.optional;
         var bufferLength = 0;
-        if (dynamic && !top) {
+        if (optional && !top) {
             bufferLength += VALID_BYTE;
             if (data === null || data === undefined) {
-                return;
+                return bufferLength;
             }
         }
 
@@ -153,9 +153,9 @@ var OneBuf = OneBuf || {};
     };
 
     Struct.prototype.writeToBuffer = function(schema, data, dataViewGroup, top) {
-        var dynamic = schema.dynamic;
+        var optional = schema.optional;
         var dataView = dataViewGroup.dataView;
-        if (dynamic && !top) {
+        if (optional && !top) {
             if (data === null || data === undefined) {
                 dataView.setInt8(dataViewGroup.dataViewIndex, 0);
                 dataViewGroup.dataViewIndex += VALID_BYTE;
@@ -224,8 +224,8 @@ var OneBuf = OneBuf || {};
     };
 
     Struct.prototype.getJSON = function(schema, dataViewGroup, top) {
-        var dynamic = schema.dynamic;
-        if (dynamic && !top) {
+        var optional = schema.optional;
+        if (optional && !top) {
             var hasData = !!dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex);
             dataViewGroup.dataViewIndex += VALID_BYTE;
             if (!hasData) {
@@ -314,8 +314,8 @@ var OneBuf = OneBuf || {};
     };
 
     Struct.prototype.getMapLength = function(schema, data) {
-        var dynamic = schema.dynamic;
-        var validByte = dynamic ? VALID_BYTE : 0;
+        var optional = schema.optional;
+        var validByte = optional ? VALID_BYTE : 0;
         // 2 byte for key count
         var length = SIZE_BYTE;
         var keyType = schema.keyType;
@@ -423,7 +423,7 @@ var OneBuf = OneBuf || {};
     };
 
     Struct.prototype.writeMapToBuffer = function(data, dataViewGroup, schema) {
-        var dynamic = schema.dynamic;
+        var optional = schema.optional;
 
         var dataView = dataViewGroup.dataView;
         var keyCount = Object.keys(data).length;
@@ -436,7 +436,7 @@ var OneBuf = OneBuf || {};
         for (var key in data) {
             this.writeTypeToBuffer(keyType, key, dataViewGroup, schema);
             value = data[key];
-            if (dynamic) {
+            if (optional) {
                 if (value === null || value === undefined) {
                     dataView.setInt8(dataViewGroup.dataViewIndex, 0);
                     dataViewGroup.dataViewIndex += VALID_BYTE;
@@ -516,7 +516,7 @@ var OneBuf = OneBuf || {};
     };
 
     Struct.prototype.getMapJSON = function(dataViewGroup, schema) {
-        var dynamic = schema.dynamic;
+        var optional = schema.optional;
         var data = {};
         var keyType = schema.keyType;
         var valueType = schema.valueType;
@@ -527,7 +527,7 @@ var OneBuf = OneBuf || {};
         var value;
         for (var i = 0; i < keyCount; i++) {
             key = this.getTypeJSON(keyType, dataViewGroup, schema);
-            if (dynamic) {
+            if (optional) {
                 var hasValue = !!dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex);
                 dataViewGroup.dataViewIndex += VALID_BYTE;
                 if (hasValue) {
