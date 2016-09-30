@@ -465,6 +465,48 @@ var OneBuf = OneBuf || {};
         return 2 + 2 * value.length;
     };
 
+
+    Struct.prototype.readTypeJSON = function(type, dataViewGroup, schema) {
+
+        var subSchema = OneBuf.schemaPool[type];
+        if (subSchema) {
+            return this.readJSON(subSchema, dataViewGroup, true);
+        }
+        if (type === "map") {
+            return this.readMapJSON(dataViewGroup, schema);
+        }
+        return schema.readValue(dataViewGroup, dataViewGroup.dataView, schema);
+    };
+
+    Struct.prototype.readMapJSON = function(dataViewGroup, schema) {
+        var optional = schema.optional;
+        var dataView = dataViewGroup.dataView;
+        var keyType = schema.keyType;
+        var valueType = schema.valueType;
+        var keyCount = dataView.getUint16(dataViewGroup.dataViewIndex);
+        dataViewGroup.dataViewIndex += SIZE_BYTE;
+
+        var data = {};
+        var key, value;
+
+        for (var i = 0; i < keyCount; i++) {
+            key = schema.readKeyValue(dataViewGroup, dataView, schema);
+            if (optional) {
+                var hasValue = !!dataView.getInt8(dataViewGroup.dataViewIndex);
+                dataViewGroup.dataViewIndex += VALID_BYTE;
+                if (hasValue) {
+                    value = this.readTypeJSON(valueType, dataViewGroup, schema);
+                } else {
+                    value = null;
+                }
+            } else {
+                value = this.readTypeJSON(valueType, dataViewGroup, schema);
+            }
+            data[key] = value;
+        }
+        return data;
+    };
+
     Struct.prototype.writeTypeToBuffer = function(type, value, dataViewGroup, schema) {
         // console.log("type: ", type);
         // console.log("value: ", value);
@@ -487,11 +529,11 @@ var OneBuf = OneBuf || {};
 
     Struct.prototype.writeMapToBuffer = function(data, dataViewGroup, schema) {
         var optional = schema.optional;
-
         var dataView = dataViewGroup.dataView;
-        var keyCount = Object.keys(data).length;
         var keyType = schema.keyType;
         var valueType = schema.valueType;
+        var keyCount = Object.keys(data).length;
+
         var value;
 
         dataView.setUint16(dataViewGroup.dataViewIndex, keyCount);
@@ -511,47 +553,6 @@ var OneBuf = OneBuf || {};
             }
             this.writeTypeToBuffer(valueType, value, dataViewGroup, schema);
         }
-    };
-
-    Struct.prototype.readTypeJSON = function(type, dataViewGroup, schema) {
-
-        var subSchema = OneBuf.schemaPool[type];
-        if (subSchema) {
-            return this.readJSON(subSchema, dataViewGroup, true);
-        }
-        if (type === "map") {
-            return this.readMapJSON(dataViewGroup, schema);
-        }
-        return schema.readValue(dataViewGroup, dataViewGroup.dataView, schema);
-    };
-
-    Struct.prototype.readMapJSON = function(dataViewGroup, schema) {
-        var optional = schema.optional;
-        var data = {};
-        var keyType = schema.keyType;
-        var valueType = schema.valueType;
-
-        var dataView = dataViewGroup.dataView;
-        var keyCount = dataView.getUint16(dataViewGroup.dataViewIndex);
-        dataViewGroup.dataViewIndex += SIZE_BYTE;
-        var key;
-        var value;
-        for (var i = 0; i < keyCount; i++) {
-            key = schema.readKeyValue(dataViewGroup, dataView, schema);
-            if (optional) {
-                var hasValue = !!dataView.getInt8(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += VALID_BYTE;
-                if (hasValue) {
-                    value = this.readTypeJSON(valueType, dataViewGroup, schema);
-                } else {
-                    value = null;
-                }
-            } else {
-                value = this.readTypeJSON(valueType, dataViewGroup, schema);
-            }
-            data[key] = value;
-        }
-        return data;
     };
 
 
