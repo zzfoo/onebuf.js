@@ -39,7 +39,6 @@ var OneBuf = OneBuf || {};
         // "string": 0,
     };
 
-
     var Struct = function(schema, fixed) {
         schema.name = schema.name || schema.id;
         OneBuf.schemaPool[schema.name] = schema;
@@ -98,6 +97,20 @@ var OneBuf = OneBuf || {};
 
         if (check[4]) {
             schema.array = true;
+        }
+
+        var noop = function() {
+            console.log("noop", this.type);
+        };
+        if (schema.type == "map") {
+            schema.readValue = ReadValueFuns[schema.valueType] || noop;
+            schema.writeValue = WriteValueFuns[schema.valueType] || noop;
+
+            schema.readKeyValue = ReadValueFuns[schema.keyType] || noop;
+            schema.writeKeyValue = WriteValueFuns[schema.keyType] || noop;
+        } else {
+            schema.readValue = ReadValueFuns[schema.type] || noop;
+            schema.writeValue = WriteValueFuns[schema.type] || noop;
         }
 
         if (!this.fixed) {
@@ -308,11 +321,11 @@ var OneBuf = OneBuf || {};
             dataView: dataView,
             dataViewIndex: dataViewIndex
         };
-        var data = this.getJSON(this.schema, dataViewGroup, true);
+        var data = this.readJSON(this.schema, dataViewGroup, true);
         return data;
     };
 
-    Struct.prototype.getJSON = function(schema, dataViewGroup, top) {
+    Struct.prototype.readJSON = function(schema, dataViewGroup, top) {
         var optional = schema.optional;
         if (optional && !top) {
             var hasData = !!dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex);
@@ -345,7 +358,7 @@ var OneBuf = OneBuf || {};
 
                     for (var j = 0; j < fieldCount; j++) {
                         field = fields[j];
-                        fieldData[field.name] = this.getJSON(field, dataViewGroup);
+                        fieldData[field.name] = this.readJSON(field, dataViewGroup);
                     }
                 }
             } else {
@@ -353,7 +366,7 @@ var OneBuf = OneBuf || {};
                 var fieldCount = fields.length;
                 for (var i = 0; i < fieldCount; i++) {
                     field = fields[i];
-                    fieldData[field.name] = this.getJSON(field, dataViewGroup);
+                    fieldData[field.name] = this.readJSON(field, dataViewGroup);
                 }
                 data = fieldData;
             }
@@ -370,10 +383,10 @@ var OneBuf = OneBuf || {};
 
                 data = [];
                 for (var i = 0; i < arrayLength; i++) {
-                    data.push(this.getTypeJSON(type, dataViewGroup, schema));
+                    data.push(this.readTypeJSON(type, dataViewGroup, schema));
                 }
             } else {
-                data = this.getTypeJSON(type, dataViewGroup, schema);
+                data = this.readTypeJSON(type, dataViewGroup, schema);
             }
         }
         return data;
@@ -438,7 +451,7 @@ var OneBuf = OneBuf || {};
 
         var length = KeyTypeLength[type];
         if (length === undefined) {
-            throw Error("illigal key type: " + type);
+            throw Error("Illigal key type: " + type);
         }
 
         return length;
@@ -457,74 +470,19 @@ var OneBuf = OneBuf || {};
         // console.log("value: ", value);
         // console.log("dataViewIndex: ", this.dataViewIndex);
         // console.log("byteLength: ", this.dataView.byteLength);
-        var dataView = dataViewGroup.dataView;
-        if (type === "map") {
-            this.writeMapToBuffer(value, dataViewGroup, schema);
-            return;
-        }
-
         var subSchema = OneBuf.schemaPool[type];
         if (subSchema) {
             this.writeToBuffer(subSchema, value, dataViewGroup, true);
             return;
         }
 
-        switch (type) {
-            case "int8":
-                dataView.setInt8(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 1;
-                break;
-            case "int16":
-                dataView.setInt16(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 2;
-                break;
-            case "int32":
-                dataView.setInt32(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 4;
-                break;
-            case "uint8":
-                dataView.setUint8(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 1;
-                break;
-            case "uint16":
-                dataView.setUint16(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 2;
-                break;
-            case "uint32":
-                dataView.setUint32(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 4;
-                break;
-            case "float32":
-                dataView.setFloat32(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 4;
-                break;
-            case "float64":
-                dataView.setFloat64(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 8;
-                break;
-            case "bool":
-            case "boolean":
-                value = value ? 1 : 0;
-                dataView.setInt8(dataViewGroup.dataViewIndex, value);
-                dataViewGroup.dataViewIndex += 1;
-                break;
-            case "string":
-                var stringLength;
-                if (!this.fixed) {
-                    stringLength = value.length;
-                    dataView.setUint16(dataViewGroup.dataViewIndex, stringLength);
-                    dataViewGroup.dataViewIndex += 2;
-                } else {
-                    stringLength = schema.stringLength;
-                }
-                for (var i = 0; i < stringLength; i++) {
-                    dataView.setUint16(dataViewGroup.dataViewIndex, value.charCodeAt(i));
-                    dataViewGroup.dataViewIndex += 2;
-                }
-                break;
-            default:
-                throw Error("Illigal type: " + type);
+        if (type === "map") {
+            this.writeMapToBuffer(value, dataViewGroup, schema);
+            return;
         }
+
+        return schema.writeValue(dataViewGroup, dataViewGroup.dataView, value, schema);
+
     };
 
     Struct.prototype.writeMapToBuffer = function(data, dataViewGroup, schema) {
@@ -539,7 +497,8 @@ var OneBuf = OneBuf || {};
         dataView.setUint16(dataViewGroup.dataViewIndex, keyCount);
         dataViewGroup.dataViewIndex += SIZE_BYTE;
         for (var key in data) {
-            this.writeTypeToBuffer(keyType, key, dataViewGroup, schema);
+            schema.writeKeyValue(dataViewGroup, dataView, key, schema);
+
             value = data[key];
             if (optional) {
                 if (value === null || value === undefined) {
@@ -554,104 +513,179 @@ var OneBuf = OneBuf || {};
         }
     };
 
-    Struct.prototype.getTypeJSON = function(type, dataViewGroup, schema) {
-        if (type === "map") {
-            return this.getMapJSON(dataViewGroup, schema);
-        }
+    Struct.prototype.readTypeJSON = function(type, dataViewGroup, schema) {
 
         var subSchema = OneBuf.schemaPool[type];
         if (subSchema) {
-            return this.getJSON(subSchema, dataViewGroup, true);
+            return this.readJSON(subSchema, dataViewGroup, true);
         }
-
-        var value;
-        switch (type) {
-            case "int8":
-                value = dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 1;
-                break;
-            case "int16":
-                value = dataViewGroup.dataView.getInt16(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 2;
-                break;
-            case "int32":
-                value = dataViewGroup.dataView.getInt32(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 4;
-                break;
-            case "uint8":
-                value = dataViewGroup.dataView.getUint8(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 1;
-                break;
-            case "uint16":
-                value = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 2;
-                break;
-            case "uint32":
-                value = dataViewGroup.dataView.getUint32(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 4;
-                break;
-            case "float32":
-                value = dataViewGroup.dataView.getFloat32(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 4;
-                break;
-            case "float64":
-                value = dataViewGroup.dataView.getFloat64(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 8;
-                break;
-            case "bool":
-            case "boolean":
-                value = dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex) ? true : false;
-                dataViewGroup.dataViewIndex += 1;
-                break;
-            case "string":
-                var stringLength;
-                if (!this.fixed) {
-                    stringLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
-                    dataViewGroup.dataViewIndex += 2;
-                } else {
-                    stringLength = schema.stringLength;
-                }
-                var value = "";
-                var char, code;
-                for (var i = 0; i < stringLength; i++) {
-                    code = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
-                    dataViewGroup.dataViewIndex += 2;
-                    value += String.fromCharCode(code);
-                }
-                break;
-            default:
-                throw Error("illigal type: ", type);
+        if (type === "map") {
+            return this.readMapJSON(dataViewGroup, schema);
         }
-        return value;
+        return schema.readValue(dataViewGroup, dataViewGroup.dataView, schema);
     };
 
-    Struct.prototype.getMapJSON = function(dataViewGroup, schema) {
+    Struct.prototype.readMapJSON = function(dataViewGroup, schema) {
         var optional = schema.optional;
         var data = {};
         var keyType = schema.keyType;
         var valueType = schema.valueType;
 
-        var keyCount = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
+        var dataView = dataViewGroup.dataView;
+        var keyCount = dataView.getUint16(dataViewGroup.dataViewIndex);
         dataViewGroup.dataViewIndex += SIZE_BYTE;
         var key;
         var value;
         for (var i = 0; i < keyCount; i++) {
-            key = this.getTypeJSON(keyType, dataViewGroup, schema);
+            key = schema.readKeyValue(dataViewGroup, dataView, schema);
             if (optional) {
-                var hasValue = !!dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex);
+                var hasValue = !!dataView.getInt8(dataViewGroup.dataViewIndex);
                 dataViewGroup.dataViewIndex += VALID_BYTE;
                 if (hasValue) {
-                    value = this.getTypeJSON(valueType, dataViewGroup, schema);
+                    value = this.readTypeJSON(valueType, dataViewGroup, schema);
                 } else {
                     value = null;
                 }
             } else {
-                value = this.getTypeJSON(valueType, dataViewGroup, schema);
+                value = this.readTypeJSON(valueType, dataViewGroup, schema);
             }
             data[key] = value;
         }
         return data;
     };
+
+
+    ////////////////////////////////////////////////
+    ////////////////////////////////////////////////
+    ////////////////////////////////////////////////
+
+
+    var ReadValueFuns = {
+        "int8": function(dataViewGroup, dataView) {
+            var value = dataView.getInt8(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 1;
+            return value;
+        },
+        "int16": function(dataViewGroup, dataView) {
+            var value = dataView.getInt16(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 2;
+            return value;
+        },
+        "int32": function(dataViewGroup, dataView) {
+            var value = dataView.getInt32(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 4;
+            return value;
+        },
+        "uint8": function(dataViewGroup, dataView) {
+            var value = dataView.getUint8(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 1;
+            return value;
+        },
+        "uint16": function(dataViewGroup, dataView) {
+            var value = dataView.getUint16(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 2;
+            return value;
+        },
+        "uint32": function(dataViewGroup, dataView) {
+            var value = dataView.getUint32(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 4;
+            return value;
+        },
+        "float32": function(dataViewGroup, dataView) {
+            var value = dataView.getFloat32(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 4;
+            return value;
+        },
+        "float64": function(dataViewGroup, dataView) {
+            var value = dataView.getFloat64(dataViewGroup.dataViewIndex);
+            dataViewGroup.dataViewIndex += 8;
+            return value;
+        },
+        "bool": function(dataViewGroup, dataView) {
+            var value = dataView.getInt8(dataViewGroup.dataViewIndex) ? true : false;
+            dataViewGroup.dataViewIndex += 1;
+            return value;
+        },
+        "string": function(dataViewGroup, dataView, schema) {
+            var stringLength;
+            if (schema.canFixed) {
+                stringLength = schema.stringLength;
+            } else {
+                stringLength = dataView.getUint16(dataViewGroup.dataViewIndex);
+                dataViewGroup.dataViewIndex += 2;
+            }
+            var value = "";
+            var char, code;
+            for (var i = 0; i < stringLength; i++) {
+                code = dataView.getUint16(dataViewGroup.dataViewIndex);
+                dataViewGroup.dataViewIndex += 2;
+                value += String.fromCharCode(code);
+            }
+            return value;
+        },
+    };
+    ReadValueFuns["boolean"] = ReadValueFuns["bool"];
+
+
+    var WriteValueFuns = {
+        "int8": function(dataViewGroup, dataView, value) {
+            dataView.setInt8(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 1;
+        },
+        "int16": function(dataViewGroup, dataView, value) {
+            dataView.setInt16(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 2;
+        },
+        "int32": function(dataViewGroup, dataView, value) {
+            dataView.setInt32(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 4;
+        },
+        "uint8": function(dataViewGroup, dataView, value) {
+            dataView.setUint8(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 1;
+        },
+        "uint16": function(dataViewGroup, dataView, value) {
+            dataView.setUint16(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 2;
+        },
+        "uint32": function(dataViewGroup, dataView, value) {
+            dataView.setUint32(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 4;
+        },
+        "float32": function(dataViewGroup, dataView, value) {
+            dataView.setFloat32(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 4;
+        },
+        "float64": function(dataViewGroup, dataView, value) {
+            dataView.setFloat64(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 8;
+        },
+        "bool": function(dataViewGroup, dataView, value) {
+            value = value ? 1 : 0;
+            dataView.setInt8(dataViewGroup.dataViewIndex, value);
+            dataViewGroup.dataViewIndex += 1;
+        },
+        "string": function(dataViewGroup, dataView, value, schema) {
+            var stringLength;
+            if (schema.canFixed) {
+                stringLength = schema.stringLength;
+            } else {
+                stringLength = value.length;
+                dataView.setUint16(dataViewGroup.dataViewIndex, stringLength);
+                dataViewGroup.dataViewIndex += 2;
+            }
+            for (var i = 0; i < stringLength; i++) {
+                dataView.setUint16(dataViewGroup.dataViewIndex, value.charCodeAt(i));
+                dataViewGroup.dataViewIndex += 2;
+            }
+        },
+    };
+    WriteValueFuns["boolean"] = WriteValueFuns["bool"];
+
+    ////////////////////////////////////////////////
+    ////////////////////////////////////////////////
+    ////////////////////////////////////////////////
+
 
     OneBuf.sizeOfUTF8String = function(str) {
         if (!str) {
