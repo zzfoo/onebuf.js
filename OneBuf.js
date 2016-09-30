@@ -108,7 +108,7 @@ var OneBuf = OneBuf || {};
 
         var subSchema = OneBuf.schemaPool[type];
         if (subSchema) {
-            if (subSchema.fixedLength === null) {
+            if (!subSchema.canFixed) {
                 canFixed = false;
             } else {
                 fixedLength = subSchema.fixedLength || 0;
