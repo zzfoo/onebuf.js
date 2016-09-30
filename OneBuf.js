@@ -56,15 +56,20 @@ var OneBuf = OneBuf || {};
         this.fixed = this._fixed;
         // this.fixed = true;
         // this.fixed = false;
+        if (!this.schema.$compiled) {
+            this.parseSchema(this.schema);
+            this.schema.$compiled = true;
+        } else {
+            this.fixed = this.schema.$canFixed;
+        }
         // console.log(this.fixed)
-        this.parseSchema(this.schema);
         // console.log("fixed:", this.id, this._fixed, this.fixed, this.fixedLength);
         if (!this.fixed) {
             this.fixedLength = null;
         }
-        // this.schema.fixedLength = this.fixedLength;
-        // console.log("schema.canFixed", this.schema.canFixed);
-        // console.log("schema.fixedLength", this.schema.fixedLength);
+        // this.schema.$fixedLength = this.fixedLength;
+        // console.log("schema.$canFixed", this.schema.$canFixed);
+        // console.log("schema.$fixedLength", this.schema.$fixedLength);
         // console.log('==============')
         // console.log(JSON.stringify(this.schema,null,2));
         // console.log('==============')
@@ -79,11 +84,11 @@ var OneBuf = OneBuf || {};
             for (var i = 0; i < fields.length; i++) {
                 var field = fields[i];
                 this.parseSchema(field);
-                canFixed = canFixed && field.canFixed;
+                canFixed = canFixed && field.$canFixed;
                 fixedLength += field.fixedLength;
             }
-            schema.canFixed = canFixed;
-            schema.fixedLength = fixedLength;
+            schema.$canFixed = canFixed;
+            schema.$fixedLength = fixedLength;
             return;
         }
 
@@ -103,38 +108,38 @@ var OneBuf = OneBuf || {};
             console.log("noop", this.type);
         };
         if (schema.type == "map") {
-            schema.readValue = ReadValueFuns[schema.valueType] || noop;
-            schema.writeValue = WriteValueFuns[schema.valueType] || noop;
+            schema.$readValue = ReadValueFuns[schema.valueType] || noop;
+            schema.$writeValue = WriteValueFuns[schema.valueType] || noop;
 
-            schema.readKeyValue = ReadValueFuns[schema.keyType] || noop;
-            schema.writeKeyValue = WriteValueFuns[schema.keyType] || noop;
+            schema.$readKeyValue = ReadValueFuns[schema.keyType] || noop;
+            schema.$writeKeyValue = WriteValueFuns[schema.keyType] || noop;
         } else {
-            schema.readValue = ReadValueFuns[schema.type] || noop;
-            schema.writeValue = WriteValueFuns[schema.type] || noop;
+            schema.$readValue = ReadValueFuns[schema.type] || noop;
+            schema.$writeValue = WriteValueFuns[schema.type] || noop;
         }
 
         if (!this.fixed) {
-            schema.canFixed = false;
-            schema.fixedLength = 0;
+            schema.$canFixed = false;
+            schema.$fixedLength = 0;
             return;
         }
 
         var subSchema = OneBuf.schemaPool[type];
         if (subSchema) {
-            if (!subSchema.canFixed) {
+            if (!subSchema.$canFixed) {
                 canFixed = false;
             } else {
-                fixedLength = subSchema.fixedLength || 0;
+                fixedLength = subSchema.$fixedLength || 0;
             }
         } else if (type === "map") {
             canFixed = false;
         } else if (type === "string") {
-            schema.stringLength = parseInt(check[3]) || 0;
-            schema.string = true;
-            if (!schema.stringLength) {
+            // schema.string = true;
+            schema.$stringLength = parseInt(check[3]) || 0;
+            if (!schema.$stringLength) {
                 canFixed = false;
             } else {
-                fixedLength = 2 + 2 * schema.stringLength;
+                fixedLength = 2 + 2 * schema.$stringLength;
             }
         } else {
             fixedLength = this.getBasicTypeLength(type) || 0;
@@ -142,21 +147,21 @@ var OneBuf = OneBuf || {};
 
         if (schema.array) {
             schema.array = true;
-            schema.arrayLength = parseInt(check[5]) || 0;
-            if (!schema.arrayLength) {
+            schema.$arrayLength = parseInt(check[5]) || 0;
+            if (!schema.$arrayLength) {
                 canFixed = false;
             } else {
-                fixedLength *= schema.arrayLength;
+                fixedLength *= schema.$arrayLength;
             }
         }
 
-        schema.canFixed = canFixed;
-        schema.fixedLength = fixedLength;
+        schema.$canFixed = canFixed;
+        schema.$fixedLength = fixedLength;
 
         this.fixed = this.fixed && canFixed;
         if (this.fixed) {
             this.fixedLength += fixedLength;
-            schema._optional = schema.optional;
+            schema.$_optional = schema.optional;
             schema.optional = false;
         }
     };
@@ -270,7 +275,7 @@ var OneBuf = OneBuf || {};
                     dataView.setUint16(dataViewGroup.dataViewIndex, arrayLength);
                     dataViewGroup.dataViewIndex += SIZE_BYTE;
                 } else {
-                    arrayLength = schema.arrayLength;
+                    arrayLength = schema.$arrayLength;
                 }
                 for (var i = 0; i < arrayLength; i++) {
                     for (var j = 0; j < fieldCount; j++) {
@@ -297,7 +302,7 @@ var OneBuf = OneBuf || {};
                     dataView.setUint16(dataViewGroup.dataViewIndex, arrayLength);
                     dataViewGroup.dataViewIndex += SIZE_BYTE;
                 } else {
-                    arrayLength = schema.arrayLength;
+                    arrayLength = schema.$arrayLength;
                 }
                 for (var i = 0; i < arrayLength; i++) {
                     this.writeTypeToBuffer(type, data[i], dataViewGroup, schema);
@@ -349,7 +354,7 @@ var OneBuf = OneBuf || {};
                     arrayLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
                     dataViewGroup.dataViewIndex += SIZE_BYTE;
                 } else {
-                    arrayLength = schema.arrayLength;
+                    arrayLength = schema.$arrayLength;
                 }
                 data = [];
                 for (var i = 0; i < arrayLength; i++) {
@@ -378,7 +383,7 @@ var OneBuf = OneBuf || {};
                     arrayLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
                     dataViewGroup.dataViewIndex += SIZE_BYTE;
                 } else {
-                    arrayLength = schema.arrayLength;
+                    arrayLength = schema.$arrayLength;
                 }
 
                 data = [];
@@ -475,7 +480,7 @@ var OneBuf = OneBuf || {};
         if (type === "map") {
             return this.readMapJSON(dataViewGroup, schema);
         }
-        return schema.readValue(dataViewGroup, dataViewGroup.dataView, schema);
+        return schema.$readValue(dataViewGroup, dataViewGroup.dataView, schema);
     };
 
     Struct.prototype.readMapJSON = function(dataViewGroup, schema) {
@@ -490,7 +495,7 @@ var OneBuf = OneBuf || {};
         var key, value;
 
         for (var i = 0; i < keyCount; i++) {
-            key = schema.readKeyValue(dataViewGroup, dataView, schema);
+            key = schema.$readKeyValue(dataViewGroup, dataView, schema);
             if (optional) {
                 var hasValue = !!dataView.getInt8(dataViewGroup.dataViewIndex);
                 dataViewGroup.dataViewIndex += VALID_BYTE;
@@ -523,7 +528,7 @@ var OneBuf = OneBuf || {};
             return;
         }
 
-        return schema.writeValue(dataViewGroup, dataViewGroup.dataView, value, schema);
+        return schema.$writeValue(dataViewGroup, dataViewGroup.dataView, value, schema);
 
     };
 
@@ -539,7 +544,7 @@ var OneBuf = OneBuf || {};
         dataView.setUint16(dataViewGroup.dataViewIndex, keyCount);
         dataViewGroup.dataViewIndex += SIZE_BYTE;
         for (var key in data) {
-            schema.writeKeyValue(dataViewGroup, dataView, key, schema);
+            schema.$writeKeyValue(dataViewGroup, dataView, key, schema);
 
             value = data[key];
             if (optional) {
@@ -609,8 +614,8 @@ var OneBuf = OneBuf || {};
         },
         "string": function(dataViewGroup, dataView, schema) {
             var stringLength;
-            if (schema.canFixed) {
-                stringLength = schema.stringLength;
+            if (schema.$canFixed) {
+                stringLength = schema.$stringLength;
             } else {
                 stringLength = dataView.getUint16(dataViewGroup.dataViewIndex);
                 dataViewGroup.dataViewIndex += 2;
@@ -668,8 +673,8 @@ var OneBuf = OneBuf || {};
         },
         "string": function(dataViewGroup, dataView, value, schema) {
             var stringLength;
-            if (schema.canFixed) {
-                stringLength = schema.stringLength;
+            if (schema.$canFixed) {
+                stringLength = schema.$stringLength;
             } else {
                 stringLength = value.length;
                 dataView.setUint16(dataViewGroup.dataViewIndex, stringLength);

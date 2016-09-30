@@ -44,8 +44,9 @@ var userData = {
     ]
 };
 
-doTest(userData, getSchema());
-testPerformance(userData, getSchema("user-b"), 10000 * 10);
+var struct = doTest(userData, getSchema());
+// console.log(OneBuf.schemaPool["user"]);
+testPerformance(userData, getSchema(), 10000 * 10);
 
 
 function doTest(data, schema, schemaPool) {
@@ -76,6 +77,8 @@ function doTest(data, schema, schemaPool) {
     console.log("binaryDataSize: ", binaryDataSize);
     console.log("compress rate: ", compressRate);
     console.log("\n");
+
+    return same;
 }
 
 function stringify(object) {
