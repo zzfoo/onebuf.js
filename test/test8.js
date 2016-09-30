@@ -1,5 +1,12 @@
 "use strict";
 
+var innerSchema = {
+    id: "inner",
+    type: "map",
+    keyType: "string",
+    valueType: "string"
+};
+
 var schema = {
     id: "main",
     fields: [{
@@ -9,57 +16,32 @@ var schema = {
         name: "b",
         type: "map",
         keyType: "string",
-        valueType: "string"
+        valueType: "int8"
+    }, {
+        name: "c",
+        type: "map",
+        keyType: "string",
+        valueType: "inner"
     }]
 };
 
 var data = {
     a: 1,
     b: {
-        "yo": "lo",
-        "so": "lo",
-        "co": "co",
-        "mo": "mo",
+        "b0": 10,
+        "b1": 11,
+        "b2": 12,
+    },
+    c: {
+        "yo": { "a": "lo", "b": "e0" },
+        "so": { "a": "lo", "b": "e1" },
+        "co": { "a": "co", "b": "e2" },
+        "mo": { "a": "mo", "b": "e3" },
     }
 };
 
 module.exports = {
     schema: schema,
-    data: data
+    data: data,
+    schemaPool: [innerSchema]
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
