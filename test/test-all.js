@@ -26,6 +26,7 @@ function doTest(data, schema, schemaPool) {
     var decodedData = struct.binaryToJSON(encodedData);
 
     var same = compare(data, decodedData, 1);
+
     console.log("======= raw data =======");
     console.log(stringify(data));
     console.log("======= decoded data =======");

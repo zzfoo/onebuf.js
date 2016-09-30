@@ -27,6 +27,7 @@ var OneBuf = OneBuf || {};
         "float32": 4,
         "float64": 8,
         "bool": 1,
+        "boolean": 1,
         // "string": 0,
         // "map": 0,
     };
@@ -39,7 +40,7 @@ var OneBuf = OneBuf || {};
     };
 
 
-    var Struct = function(schema) {
+    var Struct = function(schema, fixed) {
         schema.name = schema.name || schema.id;
         OneBuf.schemaPool[schema.name] = schema;
 
@@ -47,31 +48,106 @@ var OneBuf = OneBuf || {};
         this.id = schema.id;
         this.name = schema.name;
         this.fields = schema.fields;
+        this._fixed = fixed || fixed === false ? fixed : (schema.fixed !== false);
         this.compile();
     };
 
     Struct.prototype.compile = function() {
+        this.fixedLength = 0;
+        this.fixed = this._fixed;
+        // this.fixed = true;
+        // this.fixed = false;
+        // console.log(this.fixed)
         this.parseSchema(this.schema);
+        // console.log("fixed:", this.id, this._fixed, this.fixed, this.fixedLength);
+        if (!this.fixed) {
+            this.fixedLength = null;
+        }
+        // this.schema.fixedLength = this.fixedLength;
+        // console.log("schema.canFixed", this.schema.canFixed);
+        // console.log("schema.fixedLength", this.schema.fixedLength);
         // console.log('==============')
         // console.log(JSON.stringify(this.schema,null,2));
         // console.log('==============')
     };
 
     Struct.prototype.parseSchema = function(schema) {
+        var canFixed = true;
+        var fixedLength = 0;
+
         if (schema.fields) {
             var fields = schema.fields;
             for (var i = 0; i < fields.length; i++) {
                 var field = fields[i];
                 this.parseSchema(field);
+                canFixed = canFixed && field.canFixed;
+                fixedLength += field.fixedLength;
+            }
+            schema.canFixed = canFixed;
+            schema.fixedLength = fixedLength;
+            return;
+        }
+
+        var type = schema.type || "int8";
+
+        // wholeString, type, sizeCfg, size, arrayCfg, arrayLength
+        // 0,           1,      2,      3,      4,      5
+        var reg = /([a-z0-9]+)(\((\d*)\))*(\[(\d*)\])*/;
+        var check = type.match(reg);
+        type = schema.type = check[1];
+
+        if (check[4]) {
+            schema.array = true;
+        }
+
+        if (!this.fixed) {
+            schema.canFixed = false;
+            schema.fixedLength = 0;
+            return;
+        }
+
+        var subSchema = OneBuf.schemaPool[type];
+        if (subSchema) {
+            if (subSchema.fixedLength === null) {
+                canFixed = false;
+            } else {
+                fixedLength = subSchema.fixedLength || 0;
+            }
+        } else if (type === "map") {
+            canFixed = false;
+        } else if (type === "string") {
+            schema.stringLength = parseInt(check[3]) || 0;
+            schema.string = true;
+            if (!schema.stringLength) {
+                canFixed = false;
+            } else {
+                fixedLength = 2 + 2 * schema.stringLength;
             }
         } else {
-            var type = schema.type;
-            if (type[type.length - 1] == "]") {
-                schema.array = true;
-                type = schema.type = type.substring(0, type.length - 2);
+            fixedLength = this.getBasicTypeLength(type) || 0;
+        }
+
+        if (schema.array) {
+            schema.array = true;
+            schema.arrayLength = parseInt(check[5]) || 0;
+            if (!schema.arrayLength) {
+                canFixed = false;
+            } else {
+                fixedLength *= schema.arrayLength;
             }
         }
+
+        schema.canFixed = canFixed;
+        schema.fixedLength = fixedLength;
+
+        this.fixed = this.fixed && canFixed;
+        if (this.fixed) {
+            this.fixedLength += fixedLength;
+            schema._optional = schema.optional;
+            schema.optional = false;
+        }
     };
+
     ////////////////////////////////////////////////
     ////////////////////////////////////////////////
     ////////////////////////////////////////////////
@@ -83,8 +159,12 @@ var OneBuf = OneBuf || {};
         var fields = this.fields,
             field;
         var bufferLength = ID_BYTE;
-
-        bufferLength += this.calculateLength(this.schema, data, true);
+        if (this.fixed) {
+            bufferLength += this.fixedLength;
+            // console.log("fixed Length: ", this.fixedLength === this.calculateLength(this.schema, data, true));
+        } else {
+            bufferLength += this.calculateLength(this.schema, data, true);
+        }
 
         // console.log("length: ", bufferLength);
         var buffer = new ArrayBuffer(bufferLength);
@@ -170,11 +250,15 @@ var OneBuf = OneBuf || {};
             field;
         if (fields) {
             if (array) {
-                var arrayLength = data.length;
                 var fieldCount = fields.length;
-
-                dataView.setUint16(dataViewGroup.dataViewIndex, arrayLength);
-                dataViewGroup.dataViewIndex += SIZE_BYTE;
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = data.length;
+                    dataView.setUint16(dataViewGroup.dataViewIndex, arrayLength);
+                    dataViewGroup.dataViewIndex += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.arrayLength;
+                }
                 for (var i = 0; i < arrayLength; i++) {
                     for (var j = 0; j < fieldCount; j++) {
                         field = fields[j];
@@ -191,12 +275,17 @@ var OneBuf = OneBuf || {};
         } else {
             var type = schema.type;
             if (array) {
-                var arrayLength = data.length;
-                if (arrayLength > MAX_ARRAY_LENGTH) {
-                    throw Error("Array too long");
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = data.length;
+                    if (arrayLength > MAX_ARRAY_LENGTH) {
+                        throw Error("Array too long");
+                    }
+                    dataView.setUint16(dataViewGroup.dataViewIndex, arrayLength);
+                    dataViewGroup.dataViewIndex += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.arrayLength;
                 }
-                dataView.setUint16(dataViewGroup.dataViewIndex, arrayLength);
-                dataViewGroup.dataViewIndex += SIZE_BYTE;
                 for (var i = 0; i < arrayLength; i++) {
                     this.writeTypeToBuffer(type, data[i], dataViewGroup, schema);
                 }
@@ -242,8 +331,13 @@ var OneBuf = OneBuf || {};
             if (array) {
                 var fieldData;
                 var fieldCount = fields.length;
-                var arrayLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += SIZE_BYTE;
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
+                    dataViewGroup.dataViewIndex += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.arrayLength;
+                }
                 data = [];
                 for (var i = 0; i < arrayLength; i++) {
                     fieldData = {};
@@ -266,8 +360,13 @@ var OneBuf = OneBuf || {};
         } else {
             var type = schema.type;
             if (array) {
-                var arrayLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += SIZE_BYTE;
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
+                    dataViewGroup.dataViewIndex += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.arrayLength;
+                }
 
                 data = [];
                 for (var i = 0; i < arrayLength; i++) {
@@ -404,15 +503,21 @@ var OneBuf = OneBuf || {};
                 dataViewGroup.dataViewIndex += 8;
                 break;
             case "bool":
+            case "boolean":
                 value = value ? 1 : 0;
                 dataView.setInt8(dataViewGroup.dataViewIndex, value);
                 dataViewGroup.dataViewIndex += 1;
                 break;
             case "string":
-                var length = value.length;
-                dataView.setUint16(dataViewGroup.dataViewIndex, length);
-                dataViewGroup.dataViewIndex += 2;
-                for (var i = 0; i < length; i++) {
+                var stringLength;
+                if (!this.fixed) {
+                    stringLength = value.length;
+                    dataView.setUint16(dataViewGroup.dataViewIndex, stringLength);
+                    dataViewGroup.dataViewIndex += 2;
+                } else {
+                    stringLength = schema.stringLength;
+                }
+                for (var i = 0; i < stringLength; i++) {
                     dataView.setUint16(dataViewGroup.dataViewIndex, value.charCodeAt(i));
                     dataViewGroup.dataViewIndex += 2;
                 }
@@ -494,16 +599,21 @@ var OneBuf = OneBuf || {};
                 dataViewGroup.dataViewIndex += 8;
                 break;
             case "bool":
+            case "boolean":
                 value = dataViewGroup.dataView.getInt8(dataViewGroup.dataViewIndex) ? true : false;
                 dataViewGroup.dataViewIndex += 1;
                 break;
             case "string":
-                var length = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
-                dataViewGroup.dataViewIndex += 2;
+                var stringLength;
+                if (!this.fixed) {
+                    stringLength = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
+                    dataViewGroup.dataViewIndex += 2;
+                } else {
+                    stringLength = schema.stringLength;
+                }
                 var value = "";
-                var char;
-                var code;
-                for (var i = 0; i < length; i++) {
+                var char, code;
+                for (var i = 0; i < stringLength; i++) {
                     code = dataViewGroup.dataView.getUint16(dataViewGroup.dataViewIndex);
                     dataViewGroup.dataViewIndex += 2;
                     value += String.fromCharCode(code);

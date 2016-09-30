@@ -9,7 +9,7 @@ var schema = {
         type: "uint16",
     }, {
         name: "name",
-        type: "string",
+        type: "string(3)",
         optional: true,
     }, {
         name: "gender",
@@ -23,7 +23,10 @@ var schema = {
     }, {
         name: "weight",
         type: "float32",
-    }]
+    }, {
+        name: "score",
+        type: "uint8[10]",
+    }, ]
 };
 
 var userData = {
@@ -33,10 +36,13 @@ var userData = {
     age: 32,
     height: 177.50,
     weight: 87.50,
+    score: [
+        11, 22, 33, 44, 55, 66, 77, 88, 99, 100
+    ]
 };
 
 doTest(userData, schema);
-testPerformance(userData, schema, 10000);
+testPerformance(userData, schema, 10000 * 10);
 
 
 function doTest(data, schema, schemaPool) {
@@ -48,6 +54,9 @@ function doTest(data, schema, schemaPool) {
     var struct = OneBuf.loadSchema(schema);
     var encodedData = struct.jsonToBinary(data);
     var decodedData = struct.binaryToJSON(encodedData);
+
+    var same = compare(data, decodedData, 1);
+
     console.log("======= raw data =======");
     console.log(stringify(data));
     console.log("======= decoded data =======");
@@ -56,6 +65,8 @@ function doTest(data, schema, schemaPool) {
     var stringfiedDataSize = OneBuf.sizeOfUTF8String(JSON.stringify(data));
     var binaryDataSize = encodedData.byteLength;
     var compressRate = (binaryDataSize / stringfiedDataSize).toFixed(2);
+    console.log("======= same =======");
+    console.log(same);
     console.log("======= data size =======");
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
@@ -67,6 +78,63 @@ function stringify(object) {
     return JSON.stringify(object, null, 2);
 }
 
+function compare(data1, data2, floatFixed) {
+    var type1 = typeof data1;
+    if (type1 !== typeof data2) {
+        return false;
+    }
+    if (type1 === "string" || type1 === "boolean" || type1 === "undefined") {
+        return data1 === data2;
+    }
+    if (type1 === "number") {
+        if (floatFixed) {
+            data1 = data1.toFixed(floatFixed || 1);
+            data2 = data2.toFixed(floatFixed || 1);
+        }
+        return data1 === data2;
+    }
+    if (type1 === "function") {
+        return false;
+    }
+
+    var arr1 = Array.isArray(data1);
+
+    if (arr1 !== Array.isArray(data2)) {
+        return false;
+    }
+
+    if (arr1) {
+        if (data1.length !== data2.length) {
+            return false;
+        }
+        for (var i = 0; i < data1.length; i++) {
+            var value1 = data1[i];
+            var value2 = data2[i];
+            if (!compare(value1, value2, floatFixed)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    var key1 = Object.keys(data1);
+    var key2 = Object.keys(data2);
+    if (key1.length !== key2.length) {
+        return false;
+    }
+    for (var i = 0; i < key1.length; i++) {
+        var key = key1[i];
+        var value1 = data1[key];
+        if (!(key in data2)) {
+            return false;
+        }
+        var value2 = data2[key];
+        if (!compare(value1, value2, floatFixed)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 function testPerformance(data, schema, testCount) {
     console.log("======= performance test =======");
