@@ -2,32 +2,35 @@
 
 var OneBuf = require("../OneBuf.js");
 
-var schema = {
-    id: "user",
-    fields: [{
-        name: "sn",
-        type: "uint16",
-    }, {
-        name: "name",
-        type: "string(3)",
-        optional: true,
-    }, {
-        name: "gender",
-        type: "uint8",
-    }, {
-        name: "age",
-        type: "uint8",
-    }, {
-        name: "height",
-        type: "float32",
-    }, {
-        name: "weight",
-        type: "float32",
-    }, {
-        name: "score",
-        type: "uint8[10]",
-    }, ]
-};
+var getSchema = function(id) {
+    var schema = {
+        id: id || "user",
+        fields: [{
+            name: "sn",
+            type: "uint16",
+        }, {
+            name: "name",
+            type: "string(3)",
+            optional: true,
+        }, {
+            name: "gender",
+            type: "uint8",
+        }, {
+            name: "age",
+            type: "uint8",
+        }, {
+            name: "height",
+            type: "float32",
+        }, {
+            name: "weight",
+            type: "float32",
+        }, {
+            name: "score",
+            type: "uint8[10]",
+        }, ]
+    };
+    return schema;
+}
 
 var userData = {
     sn: 1234,
@@ -41,8 +44,8 @@ var userData = {
     ]
 };
 
-doTest(userData, schema);
-testPerformance(userData, schema, 10000 * 10);
+doTest(userData, getSchema());
+testPerformance(userData, getSchema("user-b"), 10000 * 10);
 
 
 function doTest(data, schema, schemaPool) {
@@ -52,6 +55,7 @@ function doTest(data, schema, schemaPool) {
         }
     }
     var struct = OneBuf.loadSchema(schema);
+
     var encodedData = struct.jsonToBinary(data);
     var decodedData = struct.binaryToJSON(encodedData);
 
@@ -141,6 +145,8 @@ function testPerformance(data, schema, testCount) {
 
     testCount = testCount || 100;
     var struct = OneBuf.loadSchema(schema);
+
+    console.log("struct fixed: ", struct.fixed);
 
     console.time("encodeJSON");
     var jsonStr;
