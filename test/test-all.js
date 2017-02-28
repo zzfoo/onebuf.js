@@ -2,6 +2,9 @@
 
 var OneBuf = require("../OneBuf.js");
 
+var testIndex = process.argv[2];
+var count = 5000;
+
 var testDir = "./";
 var test0 = require(testDir + "test0.js");
 var test1 = require(testDir + "test1.js");
@@ -41,6 +44,20 @@ function doTest(data, schema, schemaPool) {
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
     console.log("compress rate: ", compressRate);
+
+    console.log("======= performance =======");
+    console.time('encode');
+    for (var i = 0; i < count; i++) {
+        var encodedData = struct.jsonToBinary(data);
+    }
+    console.timeEnd('encode');
+
+    console.time('decode');
+    for (var i = 0; i < count; i++) {
+        var decodedData = struct.binaryToJSON(encodedData);
+    }
+    console.timeEnd('decode');
+
     console.log("\n");
 
     return same;
@@ -118,7 +135,6 @@ function doOneTest(index) {
     return doTest(unitTest.data, unitTest.schema, unitTest.schemaPool);
 }
 
-var testIndex = process.argv[2];
 
 if (testIndex !== undefined) {
     doOneTest(parseInt(testIndex) || 0);
