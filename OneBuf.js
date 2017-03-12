@@ -221,10 +221,11 @@ var OneBuf = OneBuf || {};
                 bufferLength += SIZE_BYTE;
 
                 var arrayLength = data.length;
-                for (var i = 0; i < data.length; i++) {
+                for (var i = 0; i < arrayLength; i++) {
+                    var _data = data[i];
                     for (var j = 0; j < fieldCount; j++) {
                         field = fields[j];
-                        bufferLength += this.calculateLength(field, data[i][field.name]);
+                        bufferLength += this.calculateLength(field, _data[field.name]);
                     }
                 }
             } else {
@@ -278,9 +279,10 @@ var OneBuf = OneBuf || {};
                     arrayLength = schema.$arrayLength;
                 }
                 for (var i = 0; i < arrayLength; i++) {
+                    var _data = data[i];
                     for (var j = 0; j < fieldCount; j++) {
                         field = fields[j];
-                        this.writeToBuffer(field, data[i][field.name], dataViewGroup);
+                        this.writeToBuffer(field, _data[field.name], dataViewGroup);
                     }
                 }
             } else {
@@ -360,7 +362,6 @@ var OneBuf = OneBuf || {};
                 for (var i = 0; i < arrayLength; i++) {
                     fieldData = {};
                     data.push(fieldData);
-
                     for (var j = 0; j < fieldCount; j++) {
                         field = fields[j];
                         fieldData[field.name] = this.readJSON(field, dataViewGroup);
