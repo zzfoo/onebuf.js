@@ -44,9 +44,11 @@ var userData = {
     ]
 };
 
+var testCount = 10000;
+
 var struct = doTest(userData, getSchema());
 // console.log(OneBuf.schemaPool["user"]);
-testPerformance(userData, getSchema(), 10000 * 10);
+testPerformance(userData, getSchema(), testCount);
 
 
 function doTest(data, schema, schemaPool) {
@@ -151,6 +153,19 @@ function testPerformance(data, schema, testCount) {
 
     console.log("struct fixed: ", struct.fixed);
 
+    console.time("encode");
+    var bin;
+    for (var i = 0; i < testCount; i++) {
+        bin = struct.jsonToBinary(data);
+    }
+    console.timeEnd("encode");
+
+    console.time("decode");
+    for (var i = 0; i < testCount; i++) {
+        struct.binaryToJSON(bin);
+    }
+    console.timeEnd("decode");
+
     console.time("encodeJSON");
     var jsonStr;
     for (var i = 0; i < testCount; i++) {
@@ -158,23 +173,12 @@ function testPerformance(data, schema, testCount) {
     }
     console.timeEnd("encodeJSON");
 
-    console.time("encodeBin");
-    var bin;
-    for (var i = 0; i < testCount; i++) {
-        bin = struct.jsonToBinary(data);
-    }
-    console.timeEnd("encodeBin");
-
     console.time("decodeJSON");
     for (var i = 0; i < testCount; i++) {
         JSON.parse(jsonStr);
     }
     console.timeEnd("decodeJSON");
 
-    console.time("decodeBin");
-    for (var i = 0; i < testCount; i++) {
-        struct.binaryToJSON(bin);
-    }
-    console.timeEnd("decodeBin");
+
     console.log("\n");
 }

@@ -25,6 +25,7 @@ function doTest(data, schema, schemaPool) {
         }
     }
     var struct = OneBuf.loadSchema(schema);
+
     var encodedData = struct.jsonToBinary(data);
     var decodedData = struct.binaryToJSON(encodedData);
 
@@ -40,8 +41,11 @@ function doTest(data, schema, schemaPool) {
     var stringfiedDataSize = OneBuf.sizeOfUTF8String(jsonStr);
     var binaryDataSize = encodedData.byteLength;
     var compressRate = (binaryDataSize / stringfiedDataSize).toFixed(2);
+
     console.log("======= same =======");
     console.log(same);
+    console.log("======= struct fixed =======");
+    console.log(struct.fixed);
     console.log("======= data size =======");
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
