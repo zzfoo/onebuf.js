@@ -2,12 +2,16 @@
 
 var innerSchema = {
     id: "inner",
-    type: "int8[]"
+    type: "int8[]",
+    // type: "int8[9]",
+    // fixed: true,
 };
 
 var schema = {
     id: "main",
-    type: "inner[]"
+    type: "inner[]",
+    // type: "inner[9]",
+    // fixed: true,
 };
 
 var data = [
