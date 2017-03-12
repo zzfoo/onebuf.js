@@ -3,7 +3,7 @@
 var OneBuf = require("../OneBuf.js");
 
 var testIndex = process.argv[2];
-var count = 5000;
+var testCount = 10000;
 
 var testDir = "./";
 var test0 = require(testDir + "test0.js");
@@ -35,7 +35,9 @@ function doTest(data, schema, schemaPool) {
     console.log("======= decoded data =======");
     console.log(stringify(decodedData));
 
-    var stringfiedDataSize = OneBuf.sizeOfUTF8String(JSON.stringify(data));
+    var jsonStr = JSON.stringify(data);
+
+    var stringfiedDataSize = OneBuf.sizeOfUTF8String(jsonStr);
     var binaryDataSize = encodedData.byteLength;
     var compressRate = (binaryDataSize / stringfiedDataSize).toFixed(2);
     console.log("======= same =======");
@@ -45,18 +47,31 @@ function doTest(data, schema, schemaPool) {
     console.log("binaryDataSize: ", binaryDataSize);
     console.log("compress rate: ", compressRate);
 
-    console.log("======= performance =======");
+    console.log("======= performance (x" + testCount + ")=======");
     console.time('encode');
-    for (var i = 0; i < count; i++) {
+    for (var i = 0; i < testCount; i++) {
         var encodedData = struct.jsonToBinary(data);
     }
     console.timeEnd('encode');
 
     console.time('decode');
-    for (var i = 0; i < count; i++) {
+    for (var i = 0; i < testCount; i++) {
         var decodedData = struct.binaryToJSON(encodedData);
     }
     console.timeEnd('decode');
+
+    console.time("encodeJSON");
+    for (var i = 0; i < testCount; i++) {
+        jsonStr = JSON.stringify(data);
+    }
+    console.timeEnd("encodeJSON");
+
+    console.time("decodeJSON");
+    for (var i = 0; i < testCount; i++) {
+        JSON.parse(jsonStr);
+    }
+    console.timeEnd("decodeJSON");
+
 
     console.log("\n");
 
