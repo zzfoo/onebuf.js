@@ -48,6 +48,9 @@ var OneBuf = OneBuf || {};
         this.name = schema.name;
         this.fields = schema.fields;
         this._fixed = fixed || fixed === false ? fixed : (schema.fixed !== false);
+
+        this.initShareArray();
+
         this.compile();
     };
 
@@ -171,7 +174,68 @@ var OneBuf = OneBuf || {};
     ////////////////////////////////////////////////
     ////////////////////////////////////////////////
     ////////////////////////////////////////////////
+    Struct.prototype.initShareArray = function(offset, value) {
+        this.shareBuffer = new ArrayBuffer(8);
+        this.uint8Array = new Uint8Array(this.shareBuffer);
 
+        this.int16Array = new Int16Array(this.shareBuffer);
+        this.uint16Array = new Uint16Array(this.shareBuffer);
+        this.int32Array = new Int32Array(this.shareBuffer);
+        this.uint32Array = new Uint32Array(this.shareBuffer);
+        this.float32Array = new Float32Array(this.shareBuffer);
+        this.float64Array = new Float64Array(this.shareBuffer);
+    };
+
+    Struct.prototype.setInt8 = function(offset, value) {
+        this.globalArray[offset] = value;
+    };
+    Struct.prototype.setUint8 = function(offset, value) {
+        this.globalArray[offset] = value;
+    };
+    Struct.prototype.setInt16 = function(offset, value) {
+        this.int16Array[0] = value;
+        this.globalArray[offset] = this.uint8Array[1];
+        this.globalArray[offset + 1] = this.uint8Array[0];
+    };
+    Struct.prototype.setUint16 = function(offset, value) {
+        this.uint16Array[0] = value;
+        this.globalArray[offset] = this.uint8Array[1];
+        this.globalArray[offset + 1] = this.uint8Array[0];
+    };
+    Struct.prototype.setInt32 = function(offset, value) {
+        this.int32Array[0] = value;
+        this.globalArray[offset] = this.uint8Array[3];
+        this.globalArray[offset + 1] = this.uint8Array[2];
+        this.globalArray[offset + 2] = this.uint8Array[1];
+        this.globalArray[offset + 3] = this.uint8Array[0];
+    };
+    Struct.prototype.setUint32 = function(offset, value) {
+        this.uint32Array[0] = value;
+        this.globalArray[offset] = this.uint8Array[3];
+        this.globalArray[offset + 1] = this.uint8Array[2];
+        this.globalArray[offset + 2] = this.uint8Array[1];
+        this.globalArray[offset + 3] = this.uint8Array[0];
+    };
+    Struct.prototype.setFloat32 = function(offset, value) {
+        this.float32Array[0] = value;
+        this.globalArray[offset] = this.uint8Array[3];
+        this.globalArray[offset + 1] = this.uint8Array[2];
+        this.globalArray[offset + 2] = this.uint8Array[1];
+        this.globalArray[offset + 3] = this.uint8Array[0];
+    };
+    Struct.prototype.setFloat64 = function(offset, value) {
+        this.float64Array[0] = value;
+        this.globalArray[offset] = this.uint8Array[7];
+        this.globalArray[offset + 1] = this.uint8Array[6];
+        this.globalArray[offset + 2] = this.uint8Array[5];
+        this.globalArray[offset + 3] = this.uint8Array[4];
+        this.globalArray[offset + 4] = this.uint8Array[3];
+        this.globalArray[offset + 5] = this.uint8Array[2];
+        this.globalArray[offset + 6] = this.uint8Array[1];
+        this.globalArray[offset + 7] = this.uint8Array[0];
+    };
+
+    var useDataView = !true;
 
     Struct.prototype.jsonToBinary = function(data) {
         var fields = this.fields,
@@ -185,19 +249,33 @@ var OneBuf = OneBuf || {};
         }
 
         // console.log("length: ", bufferLength);
+
         var buffer = new ArrayBuffer(bufferLength);
-        var dataView = new DataView(buffer);
+        var dataView;
+
+        if (!useDataView) {
+            this.globalArray = new Uint8Array(buffer);
+            dataView = this;
+        } else {
+            dataView = new DataView(buffer);
+        }
+
         var dataViewIndex = 0;
         dataView.setUint16(dataViewIndex, this.schema.id);
         dataViewIndex += ID_BYTE;
 
         var dataViewGroup = {
             dataView: dataView,
-            dataViewIndex: dataViewIndex
+            dataViewIndex: dataViewIndex,
+            struct: this,
         };
         this.writeToBuffer(this.schema, data, dataViewGroup, true);
         // console.log("dataViewIndex: ", dataViewGroup.dataViewIndex);
         // console.log("dataView: ", dataViewGroup.dataView.byteLength);
+
+        if (!useDataView){
+            dataView = new DataView(buffer);
+        }
 
         return dataView;
     };
