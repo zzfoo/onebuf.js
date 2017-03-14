@@ -16,7 +16,7 @@ var schema = {
         name: "b",
         type: "map",
         keyType: "string",
-        valueType: "int8"
+        valueType: "int32"
     }, {
         name: "c",
         type: "map",
@@ -31,6 +31,7 @@ var data = {
         "b0": 10,
         "b1": 11,
         "b2": 12,
+        "b3": -15,
     },
     c: {
         "yo": { "a": "lo", "b": "e0" },

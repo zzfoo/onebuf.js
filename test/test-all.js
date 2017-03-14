@@ -4,6 +4,7 @@ var OneBuf = require("../OneBuf.js");
 
 var testIndex = process.argv[2];
 var testCount = 10000;
+// var testCount = 1;
 
 var testDir = "./";
 var test0 = require(testDir + "test0.js");
