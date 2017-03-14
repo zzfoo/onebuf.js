@@ -51,7 +51,7 @@ var OneBuf = OneBuf || {};
         this.fields = schema.fields;
         this._fixed = fixed || fixed === false ? fixed : (schema.fixed !== false);
 
-        this.initShareArray();
+        this.initCacheArray();
 
         // this.useDataView();
 
@@ -179,133 +179,131 @@ var OneBuf = OneBuf || {};
     ////////////////////////////////////////////////
     ////////////////////////////////////////////////
 
-    Struct.prototype.initShareArray = function(offset, value) {
-        this.shareBuffer = new ArrayBuffer(8);
+    Struct.prototype.initCacheArray = function() {
+        this.cacheBuffer = new ArrayBuffer(8);
 
-        this.uint8Array = new Uint8Array(this.shareBuffer);
-        this.int8Array = new Int8Array(this.shareBuffer);
+        this.uint8Array = new Uint8Array(this.cacheBuffer);
+        this.int8Array = new Int8Array(this.cacheBuffer);
 
-        this.uint16Array = new Uint16Array(this.shareBuffer);
-        this.int16Array = new Int16Array(this.shareBuffer);
+        this.uint16Array = new Uint16Array(this.cacheBuffer);
+        this.int16Array = new Int16Array(this.cacheBuffer);
 
-        this.uint32Array = new Uint32Array(this.shareBuffer);
-        this.int32Array = new Int32Array(this.shareBuffer);
+        this.uint32Array = new Uint32Array(this.cacheBuffer);
+        this.int32Array = new Int32Array(this.cacheBuffer);
 
-        this.float32Array = new Float32Array(this.shareBuffer);
-        this.float64Array = new Float64Array(this.shareBuffer);
+        this.float32Array = new Float32Array(this.cacheBuffer);
+        this.float64Array = new Float64Array(this.cacheBuffer);
     };
 
     Struct.prototype.setUint8 = function(offset, value) {
-        this.globalArray[offset] = value;
+        this.byteArray[offset] = value;
     };
+
     Struct.prototype.getUint8 = function(offset) {
-        return this.globalArray[offset];
+        return this.byteArray[offset];
     };
 
     Struct.prototype.setInt8 = function(offset, value) {
-        this.globalArray[offset] = value;
+        this.byteArray[offset] = value;
     };
+
     Struct.prototype.getInt8 = function(offset) {
-        // return this.globalArray[offset];
-        this.uint8Array[0] = this.globalArray[offset];
+        this.uint8Array[0] = this.byteArray[offset];
         return this.int8Array[0];
     };
 
     Struct.prototype.setUint16 = function(offset, value) {
-        this.globalArray[offset] = value >>> 8;
-        this.globalArray[offset + 1] = value;
+        this.byteArray[offset] = value >>> 8;
+        this.byteArray[offset + 1] = value;
     };
+
     Struct.prototype.getUint16 = function(offset) {
-        var a = this.globalArray[offset];
-        var b = this.globalArray[offset + 1];
+        var a = this.byteArray[offset];
+        var b = this.byteArray[offset + 1];
         return (a << 8) | b;
     };
 
     Struct.prototype.setInt16 = function(offset, value) {
-        this.globalArray[offset] = value >>> 8;
-        this.globalArray[offset + 1] = value;
+        this.byteArray[offset] = value >>> 8;
+        this.byteArray[offset + 1] = value;
     };
+
     Struct.prototype.getInt16 = function(offset) {
-        // var a = this.globalArray[offset];
-        // var b = this.globalArray[offset + 1];
-        // return (a << 8) | b;
-        this.uint8Array[0] = this.globalArray[offset + 1];
-        this.uint8Array[1] = this.globalArray[offset];
+        this.uint8Array[0] = this.byteArray[offset + 1];
+        this.uint8Array[1] = this.byteArray[offset];
         return this.int16Array[0];
     };
 
-    Struct.prototype.setInt32 = function(offset, value) {
-        this.globalArray[offset] = value >>> 24;
-        this.globalArray[offset + 1] = (value >>> 16);
-        this.globalArray[offset + 2] = (value >>> 8);
-        this.globalArray[offset + 3] = value;
+    Struct.prototype.setUint32 = function(offset, value) {
+        // this.dataView.setUint32(offset, value);
+        this.byteArray[offset] = value >>> 24;
+        this.byteArray[offset + 1] = (value >>> 16);
+        this.byteArray[offset + 2] = (value >>> 8);
+        this.byteArray[offset + 3] = value;
     };
-    Struct.prototype.getInt32 = function(offset) {
-        // var a = this.globalArray[offset];
-        // var b = this.globalArray[offset + 1];
-        // var c = this.globalArray[offset + 2];
-        // var d = this.globalArray[offset + 3];
+
+    Struct.prototype.getUint32 = function(offset) {
+        // var a = this.byteArray[offset];
+        // var b = this.byteArray[offset + 1];
+        // var c = this.byteArray[offset + 2];
+        // var d = this.byteArray[offset + 3];
         // return (a << 24) | (b << 16) | (c << 8) | d;
-        this.uint8Array[0] = this.globalArray[offset + 3];
-        this.uint8Array[1] = this.globalArray[offset + 2];
-        this.uint8Array[2] = this.globalArray[offset + 1];
-        this.uint8Array[3] = this.globalArray[offset];
+        return this.dataView.getUint32(offset);
+    };
+
+    Struct.prototype.setInt32 = function(offset, value) {
+        this.byteArray[offset] = value >>> 24;
+        this.byteArray[offset + 1] = (value >>> 16);
+        this.byteArray[offset + 2] = (value >>> 8);
+        this.byteArray[offset + 3] = value;
+    };
+
+    Struct.prototype.getInt32 = function(offset) {
+        this.uint8Array[0] = this.byteArray[offset + 3];
+        this.uint8Array[1] = this.byteArray[offset + 2];
+        this.uint8Array[2] = this.byteArray[offset + 1];
+        this.uint8Array[3] = this.byteArray[offset];
         return this.int32Array[0];
     };
 
-
     Struct.prototype.setFloat32 = function(offset, value) {
         this.float32Array[0] = value;
-        this.globalArray[offset] = this.uint8Array[3];
-        this.globalArray[offset + 1] = this.uint8Array[2];
-        this.globalArray[offset + 2] = this.uint8Array[1];
-        this.globalArray[offset + 3] = this.uint8Array[0];
+        this.byteArray[offset] = this.uint8Array[3];
+        this.byteArray[offset + 1] = this.uint8Array[2];
+        this.byteArray[offset + 2] = this.uint8Array[1];
+        this.byteArray[offset + 3] = this.uint8Array[0];
     };
+
     Struct.prototype.getFloat32 = function(offset) {
-        this.uint8Array[0] = this.globalArray[offset + 3];
-        this.uint8Array[1] = this.globalArray[offset + 2];
-        this.uint8Array[2] = this.globalArray[offset + 1];
-        this.uint8Array[3] = this.globalArray[offset];
+        this.uint8Array[0] = this.byteArray[offset + 3];
+        this.uint8Array[1] = this.byteArray[offset + 2];
+        this.uint8Array[2] = this.byteArray[offset + 1];
+        this.uint8Array[3] = this.byteArray[offset];
         return this.float32Array[0];
     };
 
     Struct.prototype.setFloat64 = function(offset, value) {
         this.float64Array[0] = value;
-        this.globalArray[offset] = this.uint8Array[7];
-        this.globalArray[offset + 1] = this.uint8Array[6];
-        this.globalArray[offset + 2] = this.uint8Array[5];
-        this.globalArray[offset + 3] = this.uint8Array[4];
-        this.globalArray[offset + 4] = this.uint8Array[3];
-        this.globalArray[offset + 5] = this.uint8Array[2];
-        this.globalArray[offset + 6] = this.uint8Array[1];
-        this.globalArray[offset + 7] = this.uint8Array[0];
-    };
-    Struct.prototype.getFloat64 = function(offset) {
-        this.uint8Array[0] = this.globalArray[offset + 7];
-        this.uint8Array[1] = this.globalArray[offset + 6];
-        this.uint8Array[2] = this.globalArray[offset + 5];
-        this.uint8Array[3] = this.globalArray[offset + 4];
-        this.uint8Array[4] = this.globalArray[offset + 3];
-        this.uint8Array[5] = this.globalArray[offset + 2];
-        this.uint8Array[6] = this.globalArray[offset + 1];
-        this.uint8Array[7] = this.globalArray[offset];
-        return this.float64Array[0];
+        this.byteArray[offset] = this.uint8Array[7];
+        this.byteArray[offset + 1] = this.uint8Array[6];
+        this.byteArray[offset + 2] = this.uint8Array[5];
+        this.byteArray[offset + 3] = this.uint8Array[4];
+        this.byteArray[offset + 4] = this.uint8Array[3];
+        this.byteArray[offset + 5] = this.uint8Array[2];
+        this.byteArray[offset + 6] = this.uint8Array[1];
+        this.byteArray[offset + 7] = this.uint8Array[0];
     };
 
-    Struct.prototype.setUint32 = function(offset, value) {
-        // this.dataView.setUint32(offset, value);
-        this.globalArray[offset] = value >>> 24;
-        this.globalArray[offset + 1] = (value >>> 16);
-        this.globalArray[offset + 2] = (value >>> 8);
-        this.globalArray[offset + 3] = value;
-    };
-    Struct.prototype.getUint32 = function(offset) {
-        return this.dataView.getUint32(offset);
-        // var a = this.globalArray[offset];
-        // var b = this.globalArray[offset + 1];
-        // var c = this.globalArray[offset + 2];
-        // var d = this.globalArray[offset + 3];
-        // return (a << 24) | (b << 16) | (c << 8) | d;
+    Struct.prototype.getFloat64 = function(offset) {
+        this.uint8Array[0] = this.byteArray[offset + 7];
+        this.uint8Array[1] = this.byteArray[offset + 6];
+        this.uint8Array[2] = this.byteArray[offset + 5];
+        this.uint8Array[3] = this.byteArray[offset + 4];
+        this.uint8Array[4] = this.byteArray[offset + 3];
+        this.uint8Array[5] = this.byteArray[offset + 2];
+        this.uint8Array[6] = this.byteArray[offset + 1];
+        this.uint8Array[7] = this.byteArray[offset];
+        return this.float64Array[0];
     };
 
     ////////////////////////////////////////////////
@@ -315,9 +313,11 @@ var OneBuf = OneBuf || {};
     ////////////////////////////////////////////////
 
     Struct.prototype.useDataView = function() {
+
         this.setUint8 = function(offset, value) {
             this.dataView.setUint8(offset, value);
         };
+
         this.getUint8 = function(offset) {
             return this.dataView.getUint8(offset);
         };
@@ -325,6 +325,7 @@ var OneBuf = OneBuf || {};
         this.setInt8 = function(offset, value) {
             this.dataView.setInt8(offset, value);
         };
+
         this.getInt8 = function(offset) {
             return this.dataView.getInt8(offset);
         };
@@ -332,6 +333,7 @@ var OneBuf = OneBuf || {};
         this.setUint16 = function(offset, value) {
             this.dataView.setUint16(offset, value);
         };
+
         this.getUint16 = function(offset) {
             return this.dataView.getUint16(offset);
         };
@@ -339,13 +341,23 @@ var OneBuf = OneBuf || {};
         this.setInt16 = function(offset, value) {
             this.dataView.setInt16(offset, value);
         };
+
         this.getInt16 = function(offset) {
             return this.dataView.getInt16(offset);
+        };
+
+        this.setUint32 = function(offset, value) {
+            this.dataView.setUint32(offset, value);
+        };
+
+        this.getUint32 = function(offset) {
+            return this.dataView.getUint32(offset);
         };
 
         this.setInt32 = function(offset, value) {
             this.dataView.setInt32(offset, value);
         };
+
         this.getInt32 = function(offset) {
             return this.dataView.getInt32(offset);
         };
@@ -353,6 +365,7 @@ var OneBuf = OneBuf || {};
         this.setFloat32 = function(offset, value) {
             this.dataView.setFloat32(offset, value);
         };
+
         this.getFloat32 = function(offset) {
             return this.dataView.getFloat32(offset);
         };
@@ -360,15 +373,9 @@ var OneBuf = OneBuf || {};
         this.setFloat64 = function(offset, value) {
             this.dataView.setFloat64(offset, value);
         };
+
         this.getFloat64 = function(offset) {
             return this.dataView.getFloat64(offset);
-        };
-
-        this.setUint32 = function(offset, value) {
-            this.dataView.setUint32(offset, value);
-        };
-        this.getUint32 = function(offset) {
-            return this.dataView.getUint32(offset);
         };
     };
 
@@ -395,12 +402,12 @@ var OneBuf = OneBuf || {};
 
         var buffer = new ArrayBuffer(bufferLength);
 
-        this.globalArray = new Uint8Array(buffer);
+        this.byteArray = new Uint8Array(buffer);
+        this.byteOffset = 0;
         this.dataView = new DataView(buffer);
-        this.dataOffset = 0;
 
-        this.setUint16(this.dataOffset, this.schema.id);
-        this.dataOffset += ID_BYTE;
+        this.setUint16(this.byteOffset, this.schema.id);
+        this.byteOffset += ID_BYTE;
 
         this.writeToBuffer(this.schema, data, true);
 
@@ -461,12 +468,12 @@ var OneBuf = OneBuf || {};
         var optional = schema.optional;
         if (optional && !top) {
             if (data === null || data === undefined) {
-                this.setInt8(this.dataOffset, 0);
-                this.dataOffset += VALID_BYTE;
+                this.setInt8(this.byteOffset, 0);
+                this.byteOffset += VALID_BYTE;
                 return;
             }
-            this.setInt8(this.dataOffset, 1);
-            this.dataOffset += VALID_BYTE;
+            this.setInt8(this.byteOffset, 1);
+            this.byteOffset += VALID_BYTE;
         }
 
         var fields = schema.fields,
@@ -478,8 +485,8 @@ var OneBuf = OneBuf || {};
                 var arrayLength;
                 if (!this.fixed) {
                     arrayLength = data.length;
-                    this.setUint16(this.dataOffset, arrayLength);
-                    this.dataOffset += SIZE_BYTE;
+                    this.setUint16(this.byteOffset, arrayLength);
+                    this.byteOffset += SIZE_BYTE;
                 } else {
                     arrayLength = schema.$arrayLength;
                 }
@@ -506,8 +513,8 @@ var OneBuf = OneBuf || {};
                     if (arrayLength > MAX_ARRAY_LENGTH) {
                         throw Error("Array too long");
                     }
-                    this.setUint16(this.dataOffset, arrayLength);
-                    this.dataOffset += SIZE_BYTE;
+                    this.setUint16(this.byteOffset, arrayLength);
+                    this.byteOffset += SIZE_BYTE;
                 } else {
                     arrayLength = schema.$arrayLength;
                 }
@@ -531,9 +538,11 @@ var OneBuf = OneBuf || {};
 
 
     Struct.prototype.binaryToJSON = function(buffer) {
-        this.globalArray = new Uint8Array(buffer);
+        this.byteArray = new Uint8Array(buffer);
+        this.byteOffset = 0;
         this.dataView = new DataView(buffer);
-        this.dataOffset = ID_BYTE;
+
+        this.byteOffset += ID_BYTE;
 
         var data = this.readJSON(this.schema, true);
         return data;
@@ -544,8 +553,8 @@ var OneBuf = OneBuf || {};
     Struct.prototype.readJSON = function(schema, top) {
         var optional = schema.optional;
         if (optional && !top) {
-            var hasData = !!this.getInt8(this.dataOffset);
-            this.dataOffset += VALID_BYTE;
+            var hasData = !!this.getInt8(this.byteOffset);
+            this.byteOffset += VALID_BYTE;
             if (!hasData) {
                 return null;
             }
@@ -562,8 +571,8 @@ var OneBuf = OneBuf || {};
                 var fieldCount = fields.length;
                 var arrayLength;
                 if (!this.fixed) {
-                    arrayLength = this.getUint16(this.dataOffset);
-                    this.dataOffset += SIZE_BYTE;
+                    arrayLength = this.getUint16(this.byteOffset);
+                    this.byteOffset += SIZE_BYTE;
                 } else {
                     arrayLength = schema.$arrayLength;
                 }
@@ -590,8 +599,8 @@ var OneBuf = OneBuf || {};
             if (array) {
                 var arrayLength;
                 if (!this.fixed) {
-                    arrayLength = this.getUint16(this.dataOffset);
-                    this.dataOffset += SIZE_BYTE;
+                    arrayLength = this.getUint16(this.byteOffset);
+                    this.byteOffset += SIZE_BYTE;
                 } else {
                     arrayLength = schema.$arrayLength;
                 }
@@ -698,8 +707,8 @@ var OneBuf = OneBuf || {};
         var dataView = this.dataView;
         var keyType = schema.keyType;
         var valueType = schema.valueType;
-        var keyCount = this.getUint16(this.dataOffset);
-        this.dataOffset += SIZE_BYTE;
+        var keyCount = this.getUint16(this.byteOffset);
+        this.byteOffset += SIZE_BYTE;
 
         var data = {};
         var key, value;
@@ -707,8 +716,8 @@ var OneBuf = OneBuf || {};
         for (var i = 0; i < keyCount; i++) {
             key = schema.$readKeyValue(this, dataView, schema);
             if (optional) {
-                var hasValue = !!dataView.getInt8(this.dataOffset);
-                this.dataOffset += VALID_BYTE;
+                var hasValue = !!dataView.getInt8(this.byteOffset);
+                this.byteOffset += VALID_BYTE;
                 if (hasValue) {
                     value = this.readTypeJSON(valueType, schema);
                 } else {
@@ -747,20 +756,20 @@ var OneBuf = OneBuf || {};
 
         var value;
 
-        this.setUint16(this.dataOffset, keyCount);
-        this.dataOffset += SIZE_BYTE;
+        this.setUint16(this.byteOffset, keyCount);
+        this.byteOffset += SIZE_BYTE;
         for (var key in data) {
             schema.$writeKeyValue(this, key, schema);
 
             value = data[key];
             if (optional) {
                 if (value === null || value === undefined) {
-                    this.setInt8(this.dataOffset, 0);
-                    this.dataOffset += VALID_BYTE;
+                    this.setInt8(this.byteOffset, 0);
+                    this.byteOffset += VALID_BYTE;
                     continue;
                 }
-                this.setInt8(this.dataOffset, 1);
-                this.dataOffset += VALID_BYTE;
+                this.setInt8(this.byteOffset, 1);
+                this.byteOffset += VALID_BYTE;
             }
             this.writeTypeToBuffer(valueType, value, schema);
         }
@@ -774,53 +783,53 @@ var OneBuf = OneBuf || {};
 
     var ReadValueFuns = {
         "int8": function(struct) {
-            var value = struct.getInt8(struct.dataOffset);
-            struct.dataOffset += 1;
+            var value = struct.getInt8(struct.byteOffset);
+            struct.byteOffset += 1;
             return value;
         },
         "int16": function(struct) {
-            var value = struct.getInt16(struct.dataOffset);
-            struct.dataOffset += 2;
+            var value = struct.getInt16(struct.byteOffset);
+            struct.byteOffset += 2;
             return value;
         },
         "int32": function(struct) {
-            var value = struct.getInt32(struct.dataOffset);
-            struct.dataOffset += 4;
+            var value = struct.getInt32(struct.byteOffset);
+            struct.byteOffset += 4;
             return value;
         },
         "uint8": function(struct) {
-            var value = struct.getUint8(struct.dataOffset);
-            struct.dataOffset += 1;
+            var value = struct.getUint8(struct.byteOffset);
+            struct.byteOffset += 1;
             return value;
         },
         "uint16": function(struct) {
-            var value = struct.getUint16(struct.dataOffset);
-            struct.dataOffset += 2;
+            var value = struct.getUint16(struct.byteOffset);
+            struct.byteOffset += 2;
             return value;
         },
         "uint32": function(struct) {
-            var value = struct.getUint32(struct.dataOffset);
-            struct.dataOffset += 4;
+            var value = struct.getUint32(struct.byteOffset);
+            struct.byteOffset += 4;
             return value;
         },
         "float32": function(struct) {
-            var value = struct.getFloat32(struct.dataOffset);
-            struct.dataOffset += 4;
+            var value = struct.getFloat32(struct.byteOffset);
+            struct.byteOffset += 4;
             return value;
         },
         "float64": function(struct) {
-            var value = struct.getFloat64(struct.dataOffset);
-            struct.dataOffset += 8;
+            var value = struct.getFloat64(struct.byteOffset);
+            struct.byteOffset += 8;
             return value;
         },
         "int64": function(struct) {
-            var value = struct.getFloat64(struct.dataOffset);
-            struct.dataOffset += 8;
+            var value = struct.getFloat64(struct.byteOffset);
+            struct.byteOffset += 8;
             return value;
         },
         "bool": function(struct) {
-            var value = struct.getInt8(struct.dataOffset) ? true : false;
-            struct.dataOffset += 1;
+            var value = struct.getInt8(struct.byteOffset) ? true : false;
+            struct.byteOffset += 1;
             return value;
         },
         "string": function(struct, schema) {
@@ -828,14 +837,14 @@ var OneBuf = OneBuf || {};
             if (schema.$canFixed) {
                 stringLength = schema.$stringLength;
             } else {
-                stringLength = struct.getUint16(struct.dataOffset);
-                struct.dataOffset += 2;
+                stringLength = struct.getUint16(struct.byteOffset);
+                struct.byteOffset += 2;
             }
             var value = "";
             var char, code;
             for (var i = 0; i < stringLength; i++) {
-                code = struct.getUint16(struct.dataOffset);
-                struct.dataOffset += 2;
+                code = struct.getUint16(struct.byteOffset);
+                struct.byteOffset += 2;
                 value += String.fromCharCode(code);
             }
             return value;
@@ -846,45 +855,45 @@ var OneBuf = OneBuf || {};
 
     var WriteValueFuns = {
         "int8": function(struct, value) {
-            struct.setInt8(struct.dataOffset, value);
-            struct.dataOffset += 1;
+            struct.setInt8(struct.byteOffset, value);
+            struct.byteOffset += 1;
         },
         "int16": function(struct, value) {
-            struct.setInt16(struct.dataOffset, value);
-            struct.dataOffset += 2;
+            struct.setInt16(struct.byteOffset, value);
+            struct.byteOffset += 2;
         },
         "int32": function(struct, value) {
-            struct.setInt32(struct.dataOffset, value);
-            struct.dataOffset += 4;
+            struct.setInt32(struct.byteOffset, value);
+            struct.byteOffset += 4;
         },
         "uint8": function(struct, value) {
-            struct.setUint8(struct.dataOffset, value);
-            struct.dataOffset += 1;
+            struct.setUint8(struct.byteOffset, value);
+            struct.byteOffset += 1;
         },
         "uint16": function(struct, value) {
-            struct.setUint16(struct.dataOffset, value);
-            struct.dataOffset += 2;
+            struct.setUint16(struct.byteOffset, value);
+            struct.byteOffset += 2;
         },
         "uint32": function(struct, value) {
-            struct.setUint32(struct.dataOffset, value);
-            struct.dataOffset += 4;
+            struct.setUint32(struct.byteOffset, value);
+            struct.byteOffset += 4;
         },
         "float32": function(struct, value) {
-            struct.setFloat32(struct.dataOffset, value);
-            struct.dataOffset += 4;
+            struct.setFloat32(struct.byteOffset, value);
+            struct.byteOffset += 4;
         },
         "float64": function(struct, value) {
-            struct.setFloat64(struct.dataOffset, value);
-            struct.dataOffset += 8;
+            struct.setFloat64(struct.byteOffset, value);
+            struct.byteOffset += 8;
         },
         "int64": function(struct, value) {
-            struct.setFloat64(struct.dataOffset, value);
-            struct.dataOffset += 8;
+            struct.setFloat64(struct.byteOffset, value);
+            struct.byteOffset += 8;
         },
         "bool": function(struct, value) {
             value = value ? 1 : 0;
-            struct.setInt8(struct.dataOffset, value);
-            struct.dataOffset += 1;
+            struct.setInt8(struct.byteOffset, value);
+            struct.byteOffset += 1;
         },
         "string": function(struct, value, schema) {
             var stringLength;
@@ -892,12 +901,12 @@ var OneBuf = OneBuf || {};
                 stringLength = schema.$stringLength;
             } else {
                 stringLength = value.length;
-                struct.setUint16(struct.dataOffset, stringLength);
-                struct.dataOffset += 2;
+                struct.setUint16(struct.byteOffset, stringLength);
+                struct.byteOffset += 2;
             }
             for (var i = 0; i < stringLength; i++) {
-                struct.setUint16(struct.dataOffset, value.charCodeAt(i));
-                struct.dataOffset += 2;
+                struct.setUint16(struct.byteOffset, value.charCodeAt(i));
+                struct.byteOffset += 2;
             }
         },
     };

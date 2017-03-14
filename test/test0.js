@@ -47,11 +47,11 @@ var innerSchema = {
 
 
 var data = {
-    a: 127,
+    a: -127,
     b: 255,
-    c: 32767,
+    c: -32767,
     d: 65535,
-    e: 2147483647,
+    e: -2147483647,
     f: 4294967295,
     g: 3.14,
     h: -999999999999999, //in JavaScript, integers (numbers without a period or exponent notation) are considered accurate up to 15 digits
