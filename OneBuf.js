@@ -470,11 +470,11 @@ var OneBuf = OneBuf || {};
         var optional = schema.optional;
         if (optional && !top) {
             if (data === null || data === undefined) {
-                this.setInt8(this.byteOffset, 0);
+                this.setUint8(this.byteOffset, 0);
                 this.byteOffset += VALID_BYTE;
                 return;
             }
-            this.setInt8(this.byteOffset, 1);
+            this.setUint8(this.byteOffset, 1);
             this.byteOffset += VALID_BYTE;
         }
 
@@ -555,7 +555,7 @@ var OneBuf = OneBuf || {};
     Struct.prototype.readJSON = function(schema, top) {
         var optional = schema.optional;
         if (optional && !top) {
-            var hasData = !!this.getInt8(this.byteOffset);
+            var hasData = !!this.getUint8(this.byteOffset);
             this.byteOffset += VALID_BYTE;
             if (!hasData) {
                 return null;
@@ -718,7 +718,7 @@ var OneBuf = OneBuf || {};
         for (var i = 0; i < keyCount; i++) {
             key = schema.$readKeyValue(this, dataView, schema);
             if (optional) {
-                var hasValue = !!dataView.getInt8(this.byteOffset);
+                var hasValue = !!this.getUint8(this.byteOffset);
                 this.byteOffset += VALID_BYTE;
                 if (hasValue) {
                     value = this.readTypeJSON(valueType, schema);
@@ -766,11 +766,11 @@ var OneBuf = OneBuf || {};
             value = data[key];
             if (optional) {
                 if (value === null || value === undefined) {
-                    this.setInt8(this.byteOffset, 0);
+                    this.setUint8(this.byteOffset, 0);
                     this.byteOffset += VALID_BYTE;
                     continue;
                 }
-                this.setInt8(this.byteOffset, 1);
+                this.setUint8(this.byteOffset, 1);
                 this.byteOffset += VALID_BYTE;
             }
             this.writeTypeToBuffer(valueType, value, schema);
@@ -830,7 +830,7 @@ var OneBuf = OneBuf || {};
             return value;
         },
         "bool": function(struct) {
-            var value = struct.getInt8(struct.byteOffset) ? true : false;
+            var value = struct.getUint8(struct.byteOffset) ? true : false;
             struct.byteOffset += 1;
             return value;
         },
