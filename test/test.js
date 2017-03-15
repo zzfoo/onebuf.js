@@ -59,8 +59,8 @@ function doTest(data, schema, schemaPool) {
     }
     var struct = OneBuf.loadSchema(schema);
 
-    var encodedData = struct.jsonToBinary(data);
-    var decodedData = struct.binaryToJSON(encodedData);
+    var encodedData = struct.encode(data);
+    var decodedData = struct.decode(encodedData);
 
     var same = compare(data, decodedData, 1);
 
@@ -156,13 +156,13 @@ function testPerformance(data, schema, testCount) {
     console.time("encode");
     var bin;
     for (var i = 0; i < testCount; i++) {
-        bin = struct.jsonToBinary(data);
+        bin = struct.encode(data);
     }
     console.timeEnd("encode");
 
     console.time("decode");
     for (var i = 0; i < testCount; i++) {
-        struct.binaryToJSON(bin);
+        struct.decode(bin);
     }
     console.timeEnd("decode");
 

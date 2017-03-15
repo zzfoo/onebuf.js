@@ -176,14 +176,16 @@ var OneBuf = OneBuf || {};
         }
     };
 
-    ////////////////////////////////////////////////
-    ////////////////////////////////////////////////
-    ////////////////////////////////////////////////
-    ////////////////////////////////////////////////
-    ////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
 
 
-    Struct.prototype.jsonToBinary = function(data) {
+    Struct.prototype.encode = function(data) {
         var fields = this.fields,
             field;
         var bufferLength = ID_BYTE;
@@ -204,11 +206,257 @@ var OneBuf = OneBuf || {};
         this.dataView.setUint16(this.byteOffset, this.schema.id);
         this.byteOffset += ID_BYTE;
 
-        this.writeToBuffer(this.schema, data, true);
+        this.writeData(this.schema, data, true);
 
         return buffer;
     };
-    Struct.prototype.encode = Struct.prototype.jsonToBinary;
+
+    Struct.prototype.writeData = function(schema, data, top) {
+        var optional = schema.optional;
+        var dataView = this.dataView;
+        if (optional && !top) {
+            if (data === null || data === undefined) {
+                dataView.setUint8(this.byteOffset, 0);
+                this.byteOffset += VALID_BYTE;
+                return;
+            }
+            dataView.setUint8(this.byteOffset, 1);
+            this.byteOffset += VALID_BYTE;
+        }
+
+        var fields = schema.fields,
+            array = schema.array,
+            field;
+        if (fields) {
+            if (array) {
+                var fieldCount = fields.length;
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = data.length;
+                    dataView.setUint16(this.byteOffset, arrayLength);
+                    this.byteOffset += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.$arrayLength;
+                }
+                for (var i = 0; i < arrayLength; i++) {
+                    var _data = data[i];
+                    for (var j = 0; j < fieldCount; j++) {
+                        field = fields[j];
+                        this.writeData(field, _data[field.name]);
+                    }
+                }
+            } else {
+                var fieldCount = fields.length;
+                for (var i = 0; i < fieldCount; i++) {
+                    field = fields[i];
+                    this.writeData(field, data[field.name]);
+                }
+            }
+        } else {
+            var type = schema.type;
+            if (array) {
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = data.length;
+                    if (arrayLength > MAX_ARRAY_LENGTH) {
+                        throw Error("Array too long");
+                    }
+                    dataView.setUint16(this.byteOffset, arrayLength);
+                    this.byteOffset += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.$arrayLength;
+                }
+                for (var i = 0; i < arrayLength; i++) {
+                    this.writeDataByType(type, data[i], schema);
+                }
+            } else {
+                this.writeDataByType(type, data, schema);
+            }
+        }
+    };
+
+
+    Struct.prototype.writeDataByType = function(type, value, schema) {
+        var subSchema = OneBuf.schemaPool[type];
+        if (subSchema) {
+            this.writeData(subSchema, value, true);
+            return;
+        }
+
+        if (type === "map") {
+            this.writeMap(value, schema);
+            return;
+        }
+
+        return schema.$writeValue(this, this.dataView, value, schema);
+
+    };
+
+    Struct.prototype.writeMap = function(data, schema) {
+        var optional = schema.optional;
+        var dataView = this.dataView;
+        var keyType = schema.keyType;
+        var valueType = schema.valueType;
+        var keyCount = Object.keys(data).length;
+
+        var value;
+
+        dataView.setUint16(this.byteOffset, keyCount);
+        this.byteOffset += SIZE_BYTE;
+        for (var key in data) {
+            schema.$writeKeyValue(this, dataView, key, schema);
+
+            value = data[key];
+            if (optional) {
+                if (value === null || value === undefined) {
+                    dataView.setUint8(this.byteOffset, 0);
+                    this.byteOffset += VALID_BYTE;
+                    continue;
+                }
+                dataView.setUint8(this.byteOffset, 1);
+                this.byteOffset += VALID_BYTE;
+            }
+            this.writeDataByType(valueType, value, schema);
+        }
+    };
+
+
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+
+
+    Struct.prototype.decode = function(buffer) {
+        this.byteOffset = 0;
+        this.dataView = new FastDataView(buffer);
+
+        this.byteOffset += ID_BYTE;
+
+        var data = this.readData(this.schema, true);
+        return data;
+    };
+
+
+    Struct.prototype.readData = function(schema, top) {
+        var optional = schema.optional;
+        var dataView = this.dataView;
+        if (optional && !top) {
+            var hasData = !!dataView.getUint8(this.byteOffset);
+            this.byteOffset += VALID_BYTE;
+            if (!hasData) {
+                return null;
+            }
+        }
+
+        var data;
+        var fields = schema.fields,
+            array = schema.array,
+            field;
+
+        if (fields) {
+            if (array) {
+                var fieldData;
+                var fieldCount = fields.length;
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = dataView.getUint16(this.byteOffset);
+                    this.byteOffset += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.$arrayLength;
+                }
+                data = [];
+                for (var i = 0; i < arrayLength; i++) {
+                    fieldData = {};
+                    data.push(fieldData);
+                    for (var j = 0; j < fieldCount; j++) {
+                        field = fields[j];
+                        fieldData[field.name] = this.readData(field);
+                    }
+                }
+            } else {
+                var fieldData = {};
+                var fieldCount = fields.length;
+                for (var i = 0; i < fieldCount; i++) {
+                    field = fields[i];
+                    fieldData[field.name] = this.readData(field);
+                }
+                data = fieldData;
+            }
+        } else {
+            var type = schema.type;
+            if (array) {
+                var arrayLength;
+                if (!this.fixed) {
+                    arrayLength = dataView.getUint16(this.byteOffset);
+                    this.byteOffset += SIZE_BYTE;
+                } else {
+                    arrayLength = schema.$arrayLength;
+                }
+
+                data = [];
+                for (var i = 0; i < arrayLength; i++) {
+                    data.push(this.readDataByType(type, schema));
+                }
+            } else {
+                data = this.readDataByType(type, schema);
+            }
+        }
+        return data;
+    };
+
+
+    Struct.prototype.readDataByType = function(type, schema) {
+
+        var subSchema = OneBuf.schemaPool[type];
+        if (subSchema) {
+            return this.readData(subSchema, true);
+        }
+        if (type === "map") {
+            return this.readMap(schema);
+        }
+        return schema.$readValue(this, this.dataView, schema);
+    };
+
+    Struct.prototype.readMap = function(schema) {
+        var optional = schema.optional;
+        var dataView = this.dataView;
+        var keyType = schema.keyType;
+        var valueType = schema.valueType;
+        var keyCount = dataView.getUint16(this.byteOffset);
+        this.byteOffset += SIZE_BYTE;
+
+        var data = {};
+        var key, value;
+
+        for (var i = 0; i < keyCount; i++) {
+            key = schema.$readKeyValue(this, dataView, schema);
+            if (optional) {
+                var hasValue = !!dataView.getUint8(this.byteOffset);
+                this.byteOffset += VALID_BYTE;
+                if (hasValue) {
+                    value = this.readDataByType(valueType, schema);
+                } else {
+                    value = null;
+                }
+            } else {
+                value = this.readDataByType(valueType, schema);
+            }
+            data[key] = value;
+        }
+        return data;
+    };
+
+
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
+
 
     Struct.prototype.calculateLength = function(schema, data, top) {
         var optional = schema.optional;
@@ -258,165 +506,6 @@ var OneBuf = OneBuf || {};
 
         return bufferLength;
     };
-
-    Struct.prototype.writeToBuffer = function(schema, data, top) {
-        var optional = schema.optional;
-        var dataView = this.dataView;
-        if (optional && !top) {
-            if (data === null || data === undefined) {
-                dataView.setUint8(this.byteOffset, 0);
-                this.byteOffset += VALID_BYTE;
-                return;
-            }
-            dataView.setUint8(this.byteOffset, 1);
-            this.byteOffset += VALID_BYTE;
-        }
-
-        var fields = schema.fields,
-            array = schema.array,
-            field;
-        if (fields) {
-            if (array) {
-                var fieldCount = fields.length;
-                var arrayLength;
-                if (!this.fixed) {
-                    arrayLength = data.length;
-                    dataView.setUint16(this.byteOffset, arrayLength);
-                    this.byteOffset += SIZE_BYTE;
-                } else {
-                    arrayLength = schema.$arrayLength;
-                }
-                for (var i = 0; i < arrayLength; i++) {
-                    var _data = data[i];
-                    for (var j = 0; j < fieldCount; j++) {
-                        field = fields[j];
-                        this.writeToBuffer(field, _data[field.name]);
-                    }
-                }
-            } else {
-                var fieldCount = fields.length;
-                for (var i = 0; i < fieldCount; i++) {
-                    field = fields[i];
-                    this.writeToBuffer(field, data[field.name]);
-                }
-            }
-        } else {
-            var type = schema.type;
-            if (array) {
-                var arrayLength;
-                if (!this.fixed) {
-                    arrayLength = data.length;
-                    if (arrayLength > MAX_ARRAY_LENGTH) {
-                        throw Error("Array too long");
-                    }
-                    dataView.setUint16(this.byteOffset, arrayLength);
-                    this.byteOffset += SIZE_BYTE;
-                } else {
-                    arrayLength = schema.$arrayLength;
-                }
-                for (var i = 0; i < arrayLength; i++) {
-                    this.writeTypeToBuffer(type, data[i], schema);
-                }
-            } else {
-                this.writeTypeToBuffer(type, data, schema);
-            }
-        }
-    };
-
-
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-
-
-    Struct.prototype.binaryToJSON = function(buffer) {
-        this.byteOffset = 0;
-        this.dataView = new FastDataView(buffer);
-
-        this.byteOffset += ID_BYTE;
-
-        var data = this.readJSON(this.schema, true);
-        return data;
-    };
-    Struct.prototype.decode = Struct.prototype.binaryToJSON;
-
-
-    Struct.prototype.readJSON = function(schema, top) {
-        var optional = schema.optional;
-        var dataView = this.dataView;
-        if (optional && !top) {
-            var hasData = !!dataView.getUint8(this.byteOffset);
-            this.byteOffset += VALID_BYTE;
-            if (!hasData) {
-                return null;
-            }
-        }
-
-        var data;
-        var fields = schema.fields,
-            array = schema.array,
-            field;
-
-        if (fields) {
-            if (array) {
-                var fieldData;
-                var fieldCount = fields.length;
-                var arrayLength;
-                if (!this.fixed) {
-                    arrayLength = dataView.getUint16(this.byteOffset);
-                    this.byteOffset += SIZE_BYTE;
-                } else {
-                    arrayLength = schema.$arrayLength;
-                }
-                data = [];
-                for (var i = 0; i < arrayLength; i++) {
-                    fieldData = {};
-                    data.push(fieldData);
-                    for (var j = 0; j < fieldCount; j++) {
-                        field = fields[j];
-                        fieldData[field.name] = this.readJSON(field);
-                    }
-                }
-            } else {
-                var fieldData = {};
-                var fieldCount = fields.length;
-                for (var i = 0; i < fieldCount; i++) {
-                    field = fields[i];
-                    fieldData[field.name] = this.readJSON(field);
-                }
-                data = fieldData;
-            }
-        } else {
-            var type = schema.type;
-            if (array) {
-                var arrayLength;
-                if (!this.fixed) {
-                    arrayLength = dataView.getUint16(this.byteOffset);
-                    this.byteOffset += SIZE_BYTE;
-                } else {
-                    arrayLength = schema.$arrayLength;
-                }
-
-                data = [];
-                for (var i = 0; i < arrayLength; i++) {
-                    data.push(this.readTypeJSON(type, schema));
-                }
-            } else {
-                data = this.readTypeJSON(type, schema);
-            }
-        }
-        return data;
-    };
-
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
 
     Struct.prototype.getTypeLength = function(type, value, schema) {
         var length;
@@ -484,98 +573,6 @@ var OneBuf = OneBuf || {};
     Struct.prototype.getStringLength = function(value) {
         return 2 + 2 * value.length;
     };
-
-
-    Struct.prototype.readTypeJSON = function(type, schema) {
-
-        var subSchema = OneBuf.schemaPool[type];
-        if (subSchema) {
-            return this.readJSON(subSchema, true);
-        }
-        if (type === "map") {
-            return this.readMapJSON(schema);
-        }
-        return schema.$readValue(this, this.dataView, schema);
-    };
-
-    Struct.prototype.readMapJSON = function(schema) {
-        var optional = schema.optional;
-        var dataView = this.dataView;
-        var keyType = schema.keyType;
-        var valueType = schema.valueType;
-        var keyCount = dataView.getUint16(this.byteOffset);
-        this.byteOffset += SIZE_BYTE;
-
-        var data = {};
-        var key, value;
-
-        for (var i = 0; i < keyCount; i++) {
-            key = schema.$readKeyValue(this, dataView, schema);
-            if (optional) {
-                var hasValue = !!dataView.getUint8(this.byteOffset);
-                this.byteOffset += VALID_BYTE;
-                if (hasValue) {
-                    value = this.readTypeJSON(valueType, schema);
-                } else {
-                    value = null;
-                }
-            } else {
-                value = this.readTypeJSON(valueType, schema);
-            }
-            data[key] = value;
-        }
-        return data;
-    };
-
-    Struct.prototype.writeTypeToBuffer = function(type, value, schema) {
-        var subSchema = OneBuf.schemaPool[type];
-        if (subSchema) {
-            this.writeToBuffer(subSchema, value, true);
-            return;
-        }
-
-        if (type === "map") {
-            this.writeMapToBuffer(value, schema);
-            return;
-        }
-
-        return schema.$writeValue(this, this.dataView, value, schema);
-
-    };
-
-    Struct.prototype.writeMapToBuffer = function(data, schema) {
-        var optional = schema.optional;
-        var dataView = this.dataView;
-        var keyType = schema.keyType;
-        var valueType = schema.valueType;
-        var keyCount = Object.keys(data).length;
-
-        var value;
-
-        dataView.setUint16(this.byteOffset, keyCount);
-        this.byteOffset += SIZE_BYTE;
-        for (var key in data) {
-            schema.$writeKeyValue(this, dataView, key, schema);
-
-            value = data[key];
-            if (optional) {
-                if (value === null || value === undefined) {
-                    dataView.setUint8(this.byteOffset, 0);
-                    this.byteOffset += VALID_BYTE;
-                    continue;
-                }
-                dataView.setUint8(this.byteOffset, 1);
-                this.byteOffset += VALID_BYTE;
-            }
-            this.writeTypeToBuffer(valueType, value, schema);
-        }
-    };
-
-
-    ////////////////////////////////////////////////
-    ////////////////////////////////////////////////
-    ////////////////////////////////////////////////
-
 
     var ReadValueFuns = {
         "int8": function(struct, dataView) {
