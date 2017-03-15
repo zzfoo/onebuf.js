@@ -314,7 +314,10 @@ var OneBuf = OneBuf || {};
     ////////////////////////////////////////////////
     ////////////////////////////////////////////////
 
-    Struct.prototype.useDataView = function() {
+    Struct.prototype.useDataView = function(dataView) {
+        if (dataView) {
+            this.dataView = dataView;
+        }
 
         this.setUint8 = function(offset, value) {
             this.dataView.setUint8(offset, value);
