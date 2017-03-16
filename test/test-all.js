@@ -2,6 +2,8 @@
 
 var OneBuf = require("../OneBuf.js");
 
+var oneBuf = new OneBuf();
+
 var testIndex = process.argv[2];
 var testCount = 10000;
 // var testCount = 1;
@@ -22,13 +24,13 @@ var unitTests = [test0, test1, test2, test3, test4, test5, test6, test7, test8];
 function doTest(data, schema, schemaPool) {
     if (schemaPool) {
         for (var i = 0; i < schemaPool.length; i++) {
-            OneBuf.loadSchema(schemaPool[i]);
+            oneBuf.compileSchema(schemaPool[i]);
         }
     }
-    var struct = OneBuf.loadSchema(schema);
+    oneBuf.compileSchema(schema);
 
-    var encodedData = struct.encode(data);
-    var decodedData = struct.decode(encodedData);
+    var encodedData = oneBuf.encode(data, schema.id);
+    var decodedData = oneBuf.decode(encodedData);
 
     var same = compare(data, decodedData, 1);
 
@@ -45,8 +47,8 @@ function doTest(data, schema, schemaPool) {
 
     console.log("======= same =======");
     console.log(same);
-    console.log("======= struct fixed =======");
-    console.log(struct.fixed);
+    console.log("======= schema fixed =======");
+    console.log(schema.$fixed);
     console.log("======= data size =======");
     console.log("stringfiedDataSize: ", stringfiedDataSize);
     console.log("binaryDataSize: ", binaryDataSize);
@@ -55,13 +57,13 @@ function doTest(data, schema, schemaPool) {
     console.log("======= performance (x" + testCount + ")=======");
     console.time('encode');
     for (var i = 0; i < testCount; i++) {
-        var encodedData = struct.encode(data);
+        var encodedData = oneBuf.encode(data, schema.id);
     }
     console.timeEnd('encode');
 
     console.time('decode');
     for (var i = 0; i < testCount; i++) {
-        var decodedData = struct.decode(encodedData);
+        var decodedData = oneBuf.decode(encodedData);
     }
     console.timeEnd('decode');
 
