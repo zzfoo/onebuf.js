@@ -76,8 +76,7 @@ var OneBuf;
         if (schema.fields) {
             var fields = schema.fields;
             for (var i = 0; i < fields.length; i++) {
-                var field = fields[i];
-                this.parseSchema(field);
+                var field = this.parseSchema(fields[i]);
                 canFixed = canFixed && field.$canFixed;
                 fixedLength += field.$fixedLength;
             }
@@ -157,8 +156,9 @@ var OneBuf;
     /////////////////////////////////////////////////////////////
 
 
-    OneBuf.prototype.encode = function(data, id) {
-        var schema = this.schemaPool[id];
+    OneBuf.prototype.encode = function(data, schemaId) {
+        var schema = this.schemaPool[schemaId || data.schemaId];
+
         this.fixed = schema.$fixed;
         this.index = schema.$index;
 

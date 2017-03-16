@@ -29,7 +29,9 @@ function doTest(data, schema, schemaPool) {
     }
     oneBuf.compileSchema(schema);
 
-    var encodedData = oneBuf.encode(data, schema.id);
+    data.schemaId = schema.id;
+    var encodedData = oneBuf.encode(data);
+
     var decodedData = oneBuf.decode(encodedData);
 
     var same = compare(data, decodedData, 1);
@@ -127,6 +129,9 @@ function compare(data1, data2, floatFixed) {
         }
         return true;
     }
+
+    delete data1.schemaId;
+    delete data2.schemaId;
 
     var key1 = Object.keys(data1);
     var key2 = Object.keys(data2);
