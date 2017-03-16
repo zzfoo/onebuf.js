@@ -174,9 +174,8 @@ var OneBuf;
         var buffer = new ArrayBuffer(bufferLength);
 
         this.dataView = new FastDataView(buffer);
-        this.byteOffset = 0;
-        this.dataView.setUint16(this.byteOffset, this.index);
-        this.byteOffset += IDX_BYTE;
+        this.dataView.setUint16(0, this.index);
+        this.byteOffset = IDX_BYTE;
 
         this.writeData(schema, data, true);
 
@@ -303,10 +302,8 @@ var OneBuf;
 
     OneBuf.prototype.decode = function(buffer) {
         this.dataView = new FastDataView(buffer);
-        this.byteOffset = 0;
-
-        this.index = this.dataView.getUint16(this.byteOffset);
-        this.byteOffset += IDX_BYTE;
+        this.index = this.dataView.getUint16(0);
+        this.byteOffset = IDX_BYTE;
 
         var schema = this.schemaList[this.index];
         var data = this.readData(schema, true);
