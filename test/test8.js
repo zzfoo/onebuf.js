@@ -16,7 +16,7 @@ var schema = {
         name: "b",
         type: "map",
         keyType: "string",
-        valueType: "int32"
+        valueType: "int8"
     }, {
         name: "c",
         type: "map",
