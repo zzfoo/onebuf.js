@@ -18,8 +18,9 @@ var test5 = require(testDir + "test5.js");
 var test6 = require(testDir + "test6.js");
 var test7 = require(testDir + "test7.js");
 var test8 = require(testDir + "test8.js");
+var test9 = require(testDir + "test9.js");
 
-var unitTests = [test0, test1, test2, test3, test4, test5, test6, test7, test8];
+var unitTests = [test0, test1, test2, test3, test4, test5, test6, test7, test8, test9];
 
 function doTest(data, schema, schemaPool) {
     if (schemaPool) {
