@@ -1,0 +1,25 @@
+{
+  "name": "onebuf.js",
+  "version": "0.0.2",
+  "description": "## Overview",
+  "main": "OneBuf.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zzfoo/onebuf.js.git"
+  },
+  "author": "zzfoo & finscn",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zzfoo/onebuf.js/issues"
+  },
+  "homepage": "https://github.com/zzfoo/onebuf.js#readme",
+  "dependencies": {
+    "fast-dataview": "0.0.2"
+  }
+}

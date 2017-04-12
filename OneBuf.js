@@ -1,6 +1,6 @@
 "use strict";
 
-var FastDataView = require("./lib/FastDataView");
+var FastDataView = require("fast-dataview");
 
 var OneBuf;
 
